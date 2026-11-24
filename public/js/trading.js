@@ -60,12 +60,13 @@ export function paperLines(acct, symbol) {
 
 export class TradingPanel {
   /** evaluate: false in pop-out windows (only the main window fills live paper orders). */
-  constructor({ getView, getViews, toast, onPick, evaluate = true }) {
+  constructor({ getView, getViews, toast, onPick, evaluate = true, recorder = null }) {
     this.getView = getView;
     this.getViews = getViews;
     this.toast = toast;
     this.onPick = onPick;
     this.evaluate = evaluate;
+    this.recorder = evaluate ? recorder : null; // journal de backtesting (backtest-panel.js)
     this.el = $('#trading');
     this.content = $('#tr-content');
     this.ticketEl = $('#tr-ticket');
@@ -194,8 +195,15 @@ export class TradingPanel {
   onReplay(view, event, payload) {
     const sym = view.state.symbol;
     if (event === 'start') {
-      const { balance, commission, slippage, leverage } = this.live.settings;
+      const { commission, slippage, leverage } = this.live.settings;
+      // Una sesión de backtesting continuada sigue con su balance; si no, el de la cuenta de práctica.
+      const balance = this.recorder?.nextBalance() ?? this.live.settings.balance;
       view.replayAccount = new PaperAccount({ balance, commission, slippage, leverage });
+      try {
+        view.replayAccount.sessionId = this.recorder?.startSession({
+          symbol: sym, tf: view.state.tf, startBalance: balance, replayFrom: view.replay?.clock ?? null,
+        }) ?? null;
+      } catch (e) { console.error('Backtesting: no se pudo abrir la sesión', e); }
       view.replayAccount.last[sym] = view.lastBar?.close;
       view.replayAccount.clock = view.replay.clock;
       this.toast(t('trade.toast.replayStart', { balance: money(balance) }));
@@ -211,6 +219,7 @@ export class TradingPanel {
     } else if (event === 'stop') {
       const acct = view.replayAccount;
       view.replayAccount = null;
+      if (acct?.sessionId) this.recorder?.endSession(acct.sessionId, { replayTo: acct.clock ?? null });
       if (payload) this.toast(payload);
       else if (acct && (acct.trades.length || Object.keys(acct.positions).length)) {
         const s = acct.stats();
@@ -299,6 +308,13 @@ export class TradingPanel {
   }
 
   handleFills(acct, fills, quiet = false) {
+    // Backtesting: cada operación cerrada en un replay se guarda en su sesión del journal.
+    if (acct.sessionId && this.recorder) {
+      for (const f of fills) {
+        const trade = f.trade && acct.trades.find((x) => x.id === f.trade);
+        if (trade) { try { this.recorder.recordTrade(acct.sessionId, trade); } catch (e) { console.error('Backtesting:', e); } }
+      }
+    }
     for (const f of fills) {
       // paper.js rejects a triggered order for one reason only: not enough buying power.
       if (f.rejected) { this.toast(t('trade.toast.rejected', { qty: fmtQty(f.order.qty), symbol: displayTicker(f.symbol) })); continue; }

@@ -1,12 +1,12 @@
-# Trading App Chart — Wickline CFD
+# AlbertosCharts
 
 [English](README.md) · **Español**
 
 Plataforma de gráficos de escritorio al estilo de TradingView, para uso personal. Muestra **CFD en tiempo real** (Nasdaq 100, S&P 500, Dow, DAX, oro…) desde **Capital.com**, dibuja los gráficos con la **GPU** (Metal, Direct3D 11 o Vulkan) y funciona en **Mac Intel con macOS Sequoia**, además de Apple Silicon, Windows y Linux.
 
-Es un fork del proyecto de código abierto [Wickline](https://github.com/keptaduona/wickline) (MIT), que aporta el motor de gráficos, los 100 indicadores, las herramientas de dibujo, las alertas, el screener y mucho más. Este fork añade la conexión con brókers, la elección del backend de GPU y las protecciones de seguridad que se describen abajo.
+Es un fork del proyecto de código abierto [Wickline](https://github.com/keptaduona/wickline) (MIT), que aporta el motor de gráficos, los 100 indicadores, las herramientas de dibujo, las alertas, el screener y mucho más. Este fork añade la conexión con brókers, el backtesting con estadísticas (sesiones, estrategias y journal), la elección del backend de GPU y las protecciones de seguridad que se describen abajo.
 
-![Wickline CFD en un Mac Intel, dibujado con Metal](docs/screenshot-gpu-metal.png)
+![AlbertosCharts en un Mac Intel, dibujado con Metal](docs/screenshot-gpu-metal.png)
 
 ---
 
@@ -42,6 +42,10 @@ Es un fork del proyecto de código abierto [Wickline](https://github.com/keptadu
 | Credenciales cifradas | Guardadas en el llavero del sistema (Llavero de macOS, DPAPI de Windows, Secret Service de Linux). |
 | Solo lectura | La app solo consulta precios y mercados: nunca abre, modifica ni cierra órdenes. |
 | Servidor local protegido | Los endpoints de brókers solo responden a las páginas de la propia app (sin CORS, con control de `Host` y `Sec-Fetch-Site`). |
+| Backtesting y journal | Cada replay es una sesión guardada bajo un usuario y una estrategia, con estadísticas estilo FX Replay / FTMO, curva de equity, desgloses y notas por operación ([sección 6.1](#61-backtesting-y-journal)). |
+| Zonas horarias | Haz clic en el reloj: todas las zonas IANA, de UTC−12 a UTC+14. |
+| Menú de clic derecho | Restablecer el gráfico, recargar datos, crear una alerta en un precio, borrar dibujos o indicadores. |
+| Dibujos por temporalidad | Elige en qué tipos de temporalidad se ve cada dibujo (minutos, horas, días, semanas, meses). |
 | Compilación para Mac Intel | `npm run dist:mac-intel` genera un `.dmg` y un `.zip` x86_64. |
 
 **Heredado de Wickline**
@@ -72,14 +76,14 @@ Referencia completa de las funciones heredadas (atajos, API de scripts, backtest
 ### macOS (Intel o Apple Silicon)
 
 1. Compila el instalador (ver [sección 4](#4-compilar-desde-el-código)), o descárgalo desde **Releases** del repositorio si hay alguno publicado.
-2. Abre `Wickline CFD-Intel-Mac-1.0.0.dmg` y arrastra **Wickline CFD** a **Aplicaciones**.
+2. Abre `AlbertosCharts-Intel-Mac-1.1.0.dmg` y arrastra **AlbertosCharts** a **Aplicaciones**.
 3. Ábrela desde Aplicaciones. La app no está firmada con un certificado de pago de Apple, así que la primera vez macOS la bloquea:
    - Pulsa **OK** (o **Cancelar**). **No** la muevas a la papelera.
    - Abre **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el final y pulsa **Abrir igualmente**. Luego confirma.
    - Si macOS dice que la app "está dañada", ejecuta esto una vez en Terminal:
 
      ```bash
-     xattr -cr "/Applications/Wickline CFD.app"
+     xattr -cr "/Applications/AlbertosCharts.app"
      ```
 
 4. La app abre un gráfico de US100. Hasta que conectes Capital.com ([sección 5](#5-conectar-capitalcom-cfd-en-tiempo-real)), ese gráfico muestra un aviso pidiendo tus credenciales. Los símbolos sin clave, como `NQ=F` o `^GSPC`, funcionan desde el primer momento.
@@ -108,7 +112,7 @@ Después compila el instalador para tu sistema:
 
 | Sistema | Comando | Resultado (en `dist/`) |
 | --- | --- | --- |
-| Mac Intel | `npm run dist:mac-intel` | `Wickline CFD-Intel-Mac-1.0.0.dmg` y `.zip` |
+| Mac Intel | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.0.dmg` y `.zip` |
 | Mac (según `package.json`) | `npm run dist:mac` | `.dmg` / `.zip` |
 | Windows | `npm run dist:win` | Instalador y `.exe` portátil |
 | Linux | `npm run dist:linux` | `.AppImage` y `.deb` |
@@ -191,6 +195,54 @@ npm run desktop
 - **Temporalidades:** Capital.com da 1m, 5m, 15m, 30m, 1H, 4H, D y S. Cualquier otra (2m, 45m, 2H, M…) se arma agrupando esas velas.
 - **Horarios:** las horas intradía se muestran en la zona horaria de tu ordenador. Las velas diarias siguen el día de negociación del bróker, que cierra a las 17:00 de Nueva York.
 
+### 6.1 Backtesting y journal
+
+Pulsa **Backtesting** en la cabecera. Todo se guarda en tu ordenador (`journal/journal.json`, con copia de seguridad).
+
+1. **Elige el usuario y la estrategia** arriba del panel. Con **⋯** puedes crear, renombrar o borrar usuarios, y crear o editar estrategias (nombre y reglas).
+2. **Empieza un replay** (botón Replay) y opera con el panel **Trade**. Cada replay se convierte en una **sesión** del usuario y la estrategia activos, y cada operación cerrada se guarda en ella, junto con su stop y objetivo iniciales, que se usan para el múltiplo R.
+3. **Continuar una sesión otro día:** en **Sesiones**, pulsa **Continuar**. El próximo replay se suma a esa sesión y empieza con su balance.
+4. **Analiza tus resultados:**
+   - **Resumen**: la tabla de estadísticas de abajo, más la curva de equity y el P&L por día de la semana, por hora, por mes y por activo. Pasa el ratón por un gráfico para ver los valores.
+   - **Sesiones**: cada sesión con su periodo, operaciones, win rate, P&L y balance.
+   - **Operaciones**: cada operación, donde puedes añadir **setup**, **etiquetas** y **notas**.
+   - **Estrategias**: una ficha resumen de cada estrategia.
+5. **Filtros:** sesión, activo, lado, resultado, rango de fechas y umbral de breakeven. También puedes incluir todas las estrategias a la vez.
+6. **Exportar y respaldar:** **Exportar CSV** genera un archivo para Excel o Google Sheets. **Copia (JSON)** e **Importar JSON** sirven para copiar o restaurar todo el journal; importar nunca borra nada.
+
+| Estadística | Qué significa |
+| --- | --- |
+| P&L total, Balance | Resultado neto en $ y %, y el balance desde el monto inicial |
+| Win rate | Ganadoras ÷ todas las operaciones (las que quedan dentro del umbral cuentan como breakeven) |
+| Profit factor | Ganancia bruta ÷ pérdida bruta |
+| R:R medio | Ganancia media ÷ pérdida media |
+| Expectativa | $ promedio por operación |
+| R medio / ΣR | Resultado en múltiplos del riesgo inicial (operaciones con stop) |
+| Drawdown máx. | Mayor caída desde un máximo de equity, en $ y % |
+| Factor de recuperación | P&L neto ÷ drawdown máximo |
+| Rachas | Racha más larga de ganadoras y de perdedoras |
+| Sharpe (por op.) | Media ÷ desviación estándar del rendimiento por operación |
+| Media diaria / semanal / mensual | P&L promedio por día, semana y mes operados |
+| Mejor / peor día, Largos / Cortos | Desglose por día y por lado |
+
+Los días y las horas siguen la zona horaria elegida en el reloj.
+
+> **Preparado para el journal:** cada operación ya guarda campos de etiquetas, notas, setup y emoción, y cada sesión tiene un tipo (`backtest` hoy; `paper`, `live` y `prop` más adelante). El archivo lleva una versión de esquema que se migra sola, así que el futuro journal de operaciones reales puede reutilizar los mismos datos.
+
+### 6.2 Zona horaria, menú de clic derecho y dibujos
+
+- **Zona horaria:** haz clic en el reloj (abajo a la derecha) y busca una ciudad o un desfase (por ejemplo `UTC-3`). La zona se aplica al reloj, a las estadísticas de backtesting y a los gráficos de Capital.com, OANDA y cripto. Los gráficos de Yahoo mantienen la hora de su bolsa.
+- **Clic derecho en el gráfico:**
+  - **Restablecer gráfico:** recupera la escala y el zoom.
+  - **Recargar datos:** vuelve a pedir el historial de precios.
+  - **Restablecer datos y gráfico:** hace las dos cosas.
+  - También puedes crear una alerta en el precio donde hiciste clic, borrar los dibujos del símbolo o quitar todos los indicadores.
+- **Dibujos por temporalidad:**
+  1. Selecciona un dibujo y pulsa **Temporalidades**.
+  2. Marca los tipos de temporalidad donde debe verse: minutos, horas, días, semanas, meses. Por ejemplo, un nivel del diario que no ensucie el gráfico de 5 minutos.
+  3. Opcional: marca **Dibujos nuevos: solo en el tipo de temporalidad actual** para que sea el comportamiento por defecto de los dibujos nuevos.
+
+
 ---
 
 ## 7. Aceleración por GPU
@@ -270,14 +322,15 @@ Los gráficos se dibujan en un canvas HTML. Chromium (dentro de Electron) dibuja
 
 | Problema | Qué hacer |
 | --- | --- |
-| macOS no deja abrir la app | **Abrir igualmente** en Privacidad y seguridad, o `xattr -cr "/Applications/Wickline CFD.app"` ([sección 3](#3-instalación-app-compilada)) |
+| macOS no deja abrir la app | **Abrir igualmente** en Privacidad y seguridad, o `xattr -cr "/Applications/AlbertosCharts.app"` ([sección 3](#3-instalación-app-compilada)) |
 | *"Capital.com no está configurado"* | Completa los cuatro campos en ⚙ → Capital.com |
 | *"Email/login o contraseña de la API key incorrectos"* | Usa la **contraseña propia de la clave**, no la de tu cuenta |
 | *"La API key no es válida"* | Comprueba que **Demo/Real** coincida con la cuenta donde generaste la clave; la clave puede estar pausada, caducada o borrada |
 | El gráfico dice *"Sin operaciones en vivo ahora"* | El mercado está cerrado (fin de semana, pausa diaria), o hay más de 40 instrumentos abiertos |
 | Ventana negra o parpadeos | ⚙ → GPU → elige **OpenGL** o **Desactivada**; o arranca una vez con `WICKLINE_GPU=gl` ([sección 14](#14-referencia-de-configuración)) |
 | No conecta con Yahoo, Binance o Capital.com | ⚙ → Proxy de red |
-| Aviso antiguo "Update available: Wickline …" | Ignóralo: las actualizaciones de este fork vienen de este repositorio |
+| Tras actualizar desde "Wickline CFD", Capital.com dice "no configurado" | La watchlist, los dibujos, los layouts y los ajustes se copian solos. Las credenciales de Capital.com estaban cifradas con el nombre anterior de la app, así que introdúcelas otra vez, una sola vez, en ⚙ |
+| El diálogo de ajustes es más alto que la ventana | Se desplaza, y **Guardar** queda siempre visible abajo. OANDA está plegado en *Otros brókers* |
 
 ---
 
@@ -285,7 +338,7 @@ Los gráficos se dibujan en un canvas HTML. Chromium (dentro de Electron) dibuja
 
 ```mermaid
 flowchart LR
-  subgraph App["Wickline CFD (Electron)"]
+  subgraph App["AlbertosCharts (Electron)"]
     UI["Página: gráficos, búsqueda, watchlist<br/>public/js"] -->|"fetch / SSE (mismo origen)"| S["Servidor local 127.0.0.1:41573<br/>server.mjs"]
     UI -->|"IPC (preload)"| M["Proceso principal<br/>desktop/main.mjs"]
     M -->|"credenciales cifradas"| K[("Llavero del sistema<br/>safeStorage")]
@@ -310,8 +363,14 @@ desktop/preload.cjs      Puente expuesto a la página (getCapital/setCapital, ge
 server.mjs               Servidor local, endpoints /api/capital/* y /api/oanda/* y sus protecciones
 public/js/datafeed.js    BrokerFeed / BrokerLive: gráficos y precios en vivo de CAPITAL: y OANDA:
 public/js/search.js      Resultados de Capital.com y OANDA en la búsqueda de símbolos
-public/js/app.js         Ajustes (Capital.com, OANDA, GPU), insignia de GPU, watchlist por defecto
+public/js/app.js         Ajustes, insignia de GPU, reloj/zonas horarias, menú de clic derecho, watchlist por defecto
+public/js/journal.js     Datos del journal: usuarios, estrategias, sesiones, operaciones (esquema + migración)
+public/js/journal-stats.js  Estadísticas: P&L, win rate, PF, R, drawdown, rachas, desgloses
+public/js/backtest-panel.js Panel de Backtesting: resumen, sesiones, operaciones, estrategias, gráficos
+public/js/tz.js          Zonas horarias (todas las IANA, desfases con horario de verano)
+public/js/drawings.js    Dibujos, con visibilidad por temporalidad
 test/brokers.test.mjs    Tests de brókers y de seguridad del servidor (APIs simuladas, sin red)
+test/journal.test.mjs    Tests del journal, las estadísticas, las zonas horarias y la visibilidad de dibujos
 docs/upstream/           Documentación original de Wickline
 ```
 
@@ -359,7 +418,7 @@ WICKLINE_SMOKE_TEST=1 WICKLINE_SMOKE_SYMBOL=CAPITAL:US100 WICKLINE_SMOKE_TF=5m n
 
 ## 14. Referencia de configuración
 
-**Archivos** (macOS: `~/Library/Application Support/Wickline CFD/`; Windows: `%APPDATA%\Wickline CFD\`; Linux: `~/.config/Wickline CFD/`):
+**Archivos** (macOS: `~/Library/Application Support/AlbertosCharts/`; Windows: `%APPDATA%\AlbertosCharts\`; Linux: `~/.config/AlbertosCharts/`):
 
 | Archivo | Contenido |
 | --- | --- |
@@ -367,6 +426,7 @@ WICKLINE_SMOKE_TEST=1 WICKLINE_SMOKE_SYMBOL=CAPITAL:US100 WICKLINE_SMOKE_TF=5m n
 | `oanda.json` | Entorno y token de OANDA (cifrado) |
 | `gpu.json` | Backend de GPU elegido y la última vuelta automática |
 | `proxy.json` | Ajuste de proxy de red |
+| `journal/journal.json` (+ `journal.bak.json`) | Journal de backtesting: usuarios, estrategias, sesiones y operaciones |
 | `window-state.json` | Tamaño y posición de la ventana |
 
 Los gráficos, dibujos, scripts y watchlists los guarda la propia página (almacenamiento local de la ventana de la app).

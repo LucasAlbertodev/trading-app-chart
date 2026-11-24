@@ -1,7 +1,7 @@
 {
-  "name": "wickline-cfd",
-  "version": "1.0.0",
-  "description": "Fork personal de Wickline: CFD en tiempo real (OANDA: NAS100, SPX500…) y gráficos acelerados por GPU (Metal / Direct3D 11 / Vulkan).",
+  "name": "albertoscharts",
+  "version": "1.1.0",
+  "description": "AlbertosCharts: gráficos estilo TradingView con CFD en tiempo real (Capital.com), backtesting con estadísticas y aceleración por GPU (Metal / Direct3D 11 / Vulkan). Basado en Wickline (MIT).",
   "license": "MIT",
   "type": "module",
   "private": false,
@@ -15,7 +15,7 @@
     "dist:linux": "electron-builder --linux --publish never",
     "update-data": "node scripts/update-data.mjs",
     "update-vendor": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/lightweight-charts/dist/lightweight-charts.standalone.production.mjs','public/vendor/lightweight-charts.mjs');fs.copyFileSync('node_modules/lightweight-charts/LICENSE','public/vendor/LICENSE-lightweight-charts.txt')\"",
-    "test": "node test/backtest.test.mjs && node test/strategy-worker.test.mjs && node test/clean-bars.test.mjs && node test/indicators.test.mjs && node test/data.test.mjs && node test/screener.test.mjs && node test/news.test.mjs && node test/paper.test.mjs && node test/heatmap.test.mjs && node test/heatmap-markets.test.mjs && node test/options.test.mjs && node test/layout.test.mjs && node test/script-sanitize.test.mjs && node test/update.test.mjs && node test/server.test.mjs && node test/timeframes.test.mjs && node test/proxy.test.mjs && node test/i18n.test.mjs && node test/watchlist.test.mjs && node test/brokers.test.mjs && node test/community.test.mjs",
+    "test": "node test/backtest.test.mjs && node test/strategy-worker.test.mjs && node test/clean-bars.test.mjs && node test/indicators.test.mjs && node test/data.test.mjs && node test/screener.test.mjs && node test/news.test.mjs && node test/paper.test.mjs && node test/heatmap.test.mjs && node test/heatmap-markets.test.mjs && node test/options.test.mjs && node test/layout.test.mjs && node test/script-sanitize.test.mjs && node test/update.test.mjs && node test/server.test.mjs && node test/timeframes.test.mjs && node test/proxy.test.mjs && node test/i18n.test.mjs && node test/watchlist.test.mjs && node test/brokers.test.mjs && node test/journal.test.mjs && node test/community.test.mjs",
     "test:e2e": "electron test/e2e.mjs",
     "dist:mac-intel": "electron-builder --mac --x64 --publish never"
   },
@@ -40,9 +40,9 @@
   },
   "author": "Wickline contributors",
   "build": {
-    "appId": "io.github.wickline.cfd.personal",
-    "productName": "Wickline CFD",
-    "copyright": "Wickline contributors · MIT License",
+    "appId": "com.lucasalberto.albertoscharts",
+    "productName": "AlbertosCharts",
+    "copyright": "AlbertosCharts · basado en Wickline (MIT)",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -68,10 +68,10 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-for-Windows-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Windows-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}-for-Windows-Portable-${version}.${ext}"
+      "artifactName": "${productName}-Windows-Portable-${version}.${ext}"
     },
     "mac": {
       "target": [
@@ -101,7 +101,7 @@
         "deb"
       ],
       "category": "Office",
-      "maintainer": "Wickline contributors",
+      "maintainer": "LucasAlberto",
       "icon": "build/icon.png",
       "artifactName": "${productName}-Linux-${version}.${ext}"
     }

@@ -25,7 +25,7 @@ await test('serves the app', async () => {
   const r = await get('/');
   assert.equal(r.status, 200);
   assert.match(r.headers.get('content-type'), /html/);
-  assert.match(await r.text(), /<title>Wickline<\/title>/);
+  assert.match(await r.text(), /<title>AlbertosCharts<\/title>/);
 });
 
 await test('serves scripts as JavaScript', async () => {

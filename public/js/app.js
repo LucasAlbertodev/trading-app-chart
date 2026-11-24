@@ -2,6 +2,7 @@
 // (watchlist, markets, alerts), search, indicators dialog, script editor, pop-out windows
 // and keyboard shortcuts. Each chart is a ChartView.
 
+import { getTz, setTz, tzOffsetAt, tzList, offsetLabel, clockText } from './tz.js';
 import { parseSymbol, displayTicker, SOURCES, loadUniverse, extendedHours, oandaStatus, capitalStatus } from './datafeed.js';
 import { tfById, tfIdOf } from './timeframes.js';
 import { TimeframeBar, IntervalBox } from './timeframe-ui.js';
@@ -31,6 +32,7 @@ import { settings, apiUrl, dataMode } from './env.js';
 import { tdCheckKey } from './twelvedata.js';
 import { checkForUpdate } from './update.js';
 import { Screener } from './screener.js';
+import { BacktestPanel } from './backtest-panel.js';
 import { NewsPanel } from './news.js';
 import { TradingPanel } from './trading.js';
 import { HeatmapPanel, groupName as sectorName } from './heatmap.js';
@@ -194,6 +196,7 @@ function createView(state) {
     onEditScript: (x, id) => { if (id) editor.edit(id); },
     onSettings: () => openSettings(),
     onCreateAlert: (x, price) => openAlertDialog(x.state.symbol, price),
+    onContextMenu: (x, at) => openChartMenu(x, at),
   });
   v.setAlerts(alerts.items);
   return v;
@@ -451,7 +454,7 @@ const HEADER_STEPS = ['hdr-1', 'hdr-2', 'hdr-3', 'hdr-4', 'hdr-5', 'hdr-6'];
 // If icons alone still don't fit, these move into the "⋯" menu, right-most first. The symbol,
 // timeframes and chart type always stay on the bar.
 const OVERFLOW = ['wl-btn', 'shot-btn', 'pop-btn', 'theme-btn', 'appearance-btn', 'settings-btn', 'log-btn', 'ext-btn',
-  'layout-btn', 'alert-btn', 'tr-btn', 'rp-btn', 'st-btn', 'op-btn', 'nw-btn', 'hm-btn', 'sc-btn', 'ed-btn', 'ind-btn', 'compare-btn'];
+  'layout-btn', 'alert-btn', 'bt-btn', 'tr-btn', 'rp-btn', 'st-btn', 'op-btn', 'nw-btn', 'hm-btn', 'sc-btn', 'ed-btn', 'ind-btn', 'compare-btn'];
 const moreBtn = $('#more-btn');
 const moreMenu = $('#more-menu');
 const overflows = () => topbar.scrollWidth > topbar.clientWidth;
@@ -694,9 +697,11 @@ async function openDesktopExtras() {
   const api = window.wicklineDesktop;
   openCapital(api);
   $('#set-oanda').hidden = !api?.getOanda;
+  $('#set-oanda-more').hidden = !api?.getOanda;
   $('#set-gpu').hidden = !api?.getGpu;
   if (!api?.getOanda) return;
   oandaLoaded = await api.getOanda().catch(() => null);
+  $('#set-oanda-more').open = !!oandaLoaded?.hasToken;
   $('#set-oanda-env').value = oandaLoaded?.env || 'practice';
   $('#set-oanda-token').value = '';
   $('#set-oanda-token').placeholder = oandaLoaded?.hasToken ? t('app.oanda.tokenSaved') : t('app.oanda.tokenPh');
@@ -804,10 +809,10 @@ function syncTitle() {
   if (!v) return;
   const last = v.lastBar;
   const prev = v.bars[v.bars.length - 2];
-  if (!last || !v.feed) { document.title = `${v.ticker} · Wickline`; return; } // loading or failed
+  if (!last || !v.feed) { document.title = `${v.ticker} · AlbertosCharts`; return; } // loading or failed
   if (v.replay) { document.title = t('app.titleReplay', { ticker: v.ticker, price: v.formatPrice(last.close) }); return; }
   const pct = prev ? ((last.close - prev.close) / prev.close) * 100 : 0;
-  document.title = `${v.ticker} ${v.formatPrice(last.close)} ${pct >= 0 ? '▲' : '▼'}${fixed(Math.abs(pct), 2)}% · Wickline`;
+  document.title = `${v.ticker} ${v.formatPrice(last.close)} ${pct >= 0 ? '▲' : '▼'}${fixed(Math.abs(pct), 2)}% · AlbertosCharts`;
 }
 
 let toastTimer;
@@ -1151,13 +1156,17 @@ onAppearanceChange(() => tester.applyTheme());
 $('#st-btn').addEventListener('click', () => { tester.setView(activeView); tester.toggle(); });
 
 // Paper trading and bar replay.
+// Backtesting: sesiones, estrategias y estadísticas de los replays (backtest-panel.js).
+const backtest = POPOUT ? null : new BacktestPanel({ toast });
 const trading = new TradingPanel({
   getView: () => activeView,
   getViews: () => views,
   toast,
   onPick: (full) => activeView?.setSymbol(full),
   evaluate: !POPOUT,
+  recorder: backtest,
 });
+$('#bt-btn').addEventListener('click', () => backtest?.toggle());
 $('#tr-btn').addEventListener('click', () => trading.toggle());
 $('#rp-btn').addEventListener('click', () => {
   const v = activeView;
@@ -1367,7 +1376,7 @@ const alerts = new AlertManager({
     $('#alert-toasts').prepend(card);
     setTimeout(() => card.remove(), 60000);
     if ('Notification' in window && Notification.permission === 'granted') {
-      try { new Notification(`Wickline: ${what}`, { body: a.message || t('alert.notifyBody', { price: a.triggerPrice }), tag: a.id }); } catch { /* ignore */ }
+      try { new Notification(`AlbertosCharts: ${what}`, { body: a.message || t('alert.notifyBody', { price: a.triggerPrice }), tag: a.id }); } catch { /* ignore */ }
     }
   },
   onChange: (items) => {
@@ -1510,12 +1519,92 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Clock (charts show exchange time for stocks and your local time for crypto)
+// ---------------------------------------------------------------------------
+// Menú de clic derecho del gráfico
+// ---------------------------------------------------------------------------
+const chartMenu = $('#chart-menu');
+let chartMenuView = null, chartMenuPrice = null;
+function openChartMenu(v, { x, y, price }) {
+  chartMenuView = v;
+  chartMenuPrice = price;
+  const item = (act, label, extra = '') => `<button type="button" class="layout-opt" data-cm="${act}"${extra}>${esc(label)}</button>`;
+  const priceText = price != null ? v.formatPrice(price) : null;
+  chartMenu.innerHTML = [
+    item('reset-view', t('cm.resetView')),
+    item('reload', t('cm.reload')),
+    item('reset-all', t('cm.resetAll')),
+    '<div class="menu-sep"></div>',
+    priceText ? item('alert', t('cm.alertAt', { price: priceText })) : '',
+    item('drawings', t('cm.clearDrawings')),
+    item('indicators', t('cm.clearIndicators')),
+  ].join('');
+  chartMenu.hidden = false;
+  const w = chartMenu.offsetWidth, h = chartMenu.offsetHeight;
+  chartMenu.style.left = `${Math.min(x, window.innerWidth - w - 8)}px`;
+  chartMenu.style.top = `${Math.min(y, window.innerHeight - h - 8)}px`;
+}
+chartMenu.addEventListener('click', (e) => {
+  const act = e.target.closest('[data-cm]')?.dataset.cm;
+  const v = chartMenuView;
+  chartMenu.hidden = true;
+  if (!act || !v) return;
+  if (act === 'reset-view') v.resetView();
+  else if (act === 'reload') v.reloadData();
+  else if (act === 'reset-all') Promise.resolve(v.reloadData()).then(() => v.resetView());
+  else if (act === 'alert' && chartMenuPrice != null) openAlertDialog(v.state.symbol, chartMenuPrice);
+  else if (act === 'drawings' && confirm(t('cm.clearDrawingsConfirm', { ticker: v.ticker }))) v.clearDrawings();
+  else if (act === 'indicators' && confirm(t('cm.clearIndicatorsConfirm'))) v.removeAllIndicators();
+});
+document.addEventListener('mousedown', (e) => { if (!chartMenu.hidden && !chartMenu.contains(e.target)) chartMenu.hidden = true; });
+window.addEventListener('blur', () => { chartMenu.hidden = true; });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') chartMenu.hidden = true; }, true);
+
+// Reloj y zona horaria (tz.js): la elegida se aplica al reloj y a los gráficos de brókers y cripto.
 function tickClock() {
-  $('#clock').textContent = new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const tz = getTz();
+  const off = offsetLabel(tzOffsetAt(tz));
+  $('#clock').textContent = `${clockText(tz, new Date(), locale)} ${off}`;
 }
 setInterval(tickClock, 1000);
 tickClock();
+
+const tzMenu = $('#tz-menu');
+let tzAll = null;
+function renderTzList() {
+  const q = $('#tz-filter').value.trim().toLowerCase().replace('−', '-');
+  const cur = getTz();
+  tzAll ||= tzList();
+  const local = { tz: '', label: `${t('app.tz.local')} (${offsetLabel(tzOffsetAt(''))}) ${Intl.DateTimeFormat().resolvedOptions().timeZone || ''}` };
+  const norm = (x) => x.toLowerCase().replace('−', '-');
+  const rows = [local, ...tzAll].filter((r) => !q || norm(r.label).includes(q) || norm(r.tz).includes(q)
+    || norm(r.label).includes(q.replace(/^utc\s*([+-])\s*(\d)(?!\d)/, 'utc$10$2')));
+  $('#tz-list').innerHTML = rows.slice(0, 500).map((r) => `<button type="button" class="tz-opt${r.tz === cur ? ' on' : ''}" data-tz="${esc(r.tz)}">${esc(r.label)}</button>`).join('')
+    || `<div class="sr-empty">${esc(t('mk.nothingHere'))}</div>`;
+}
+$('#clock').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (!tzMenu.hidden) { tzMenu.hidden = true; return; }
+  tzMenu.hidden = false;
+  const r = $('#clock').getBoundingClientRect();
+  tzMenu.style.right = `${Math.max(8, window.innerWidth - r.right)}px`;
+  tzMenu.style.bottom = `${window.innerHeight - r.top + 6}px`;
+  tzMenu.style.left = 'auto'; tzMenu.style.top = 'auto';
+  $('#tz-filter').value = '';
+  renderTzList();
+  $('#tz-filter').focus();
+  tzMenu.querySelector('.tz-opt.on')?.scrollIntoView({ block: 'center' });
+});
+$('#tz-filter').addEventListener('input', renderTzList);
+tzMenu.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') tzMenu.hidden = true; });
+tzMenu.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const b = e.target.closest('[data-tz]');
+  if (!b) return;
+  setTz(b.dataset.tz);
+  tzMenu.hidden = true;
+  location.reload(); // los gráficos vuelven a cargar con la hora nueva
+});
+document.addEventListener('mousedown', (e) => { if (!tzMenu.hidden && !tzMenu.contains(e.target) && e.target !== $('#clock')) tzMenu.hidden = true; });
 
 window.addEventListener('hashchange', () => {
   if (POPOUT || !activeView) return;
@@ -1541,7 +1630,7 @@ dataMode().then((mode) => {
   syncHeader();
   showTab(store.get('sideTab', 'markets'));
 });
-if (POPOUT) document.title = `${activeView.ticker} · Wickline`;
+if (POPOUT) document.title = `${activeView.ticker} · AlbertosCharts`;
 
 // Desktop app: tell the user when a newer version is on GitHub Releases (they can turn it off).
 async function updateCheck() {

@@ -3,7 +3,7 @@
 // any key, using the user's own internet connection — and shows the app in its own window.
 
 import { app, BrowserWindow, ipcMain, Menu, safeStorage, session, shell } from 'electron';
-import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, cpSync, renameSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -30,12 +30,35 @@ if (SMOKE) {
   app.setPath('userData', profile);
 }
 
+// Datos de versiones anteriores (Wickline CFD): watchlist, dibujos, layouts, backtesting y
+// ajustes se copian una vez a la carpeta de AlbertosCharts. Las credenciales de los brókers
+// estaban cifradas con la llave del nombre anterior en el llavero, así que se vuelven a pedir.
+function migrateUserData() {
+  if (SMOKE) return;
+  try {
+    const dest = app.getPath('userData');
+    if (existsSync(path.join(dest, '.migrated')) || existsSync(path.join(dest, 'Local Storage'))) return;
+    for (const old of ['Wickline CFD', 'Wickline']) {
+      const src = path.join(app.getPath('appData'), old);
+      if (!existsSync(path.join(src, 'Local Storage'))) continue;
+      mkdirSync(dest, { recursive: true });
+      for (const item of ['Local Storage', 'IndexedDB', 'gpu.json', 'proxy.json', 'window-state.json', 'journal']) {
+        const from = path.join(src, item);
+        if (existsSync(from)) cpSync(from, path.join(dest, item), { recursive: true, errorOnExist: false });
+      }
+      writeFileSync(path.join(dest, '.migrated'), old);
+      return;
+    }
+  } catch (e) { console.error('No se pudieron migrar los datos anteriores:', e); }
+}
+migrateUserData();
+
 // GPU: Metal (Mac), Direct3D 11 (Windows) o Vulkan (Linux), antes de que arranque Chromium.
 applyGpuSwitches();
 watchGpu();
 
 if (!app.requestSingleInstanceLock()) app.quit();
-app.setAppUserModelId('io.github.wickline.desktop'); // desktop notifications on Windows
+app.setAppUserModelId('com.lucasalberto.albertoscharts'); // desktop notifications on Windows
 
 let origin = null;
 let mainWindow = null;
@@ -74,7 +97,7 @@ function createMainWindow() {
   const win = new BrowserWindow({
     width: s.width || 1440, height: s.height || 900, x: s.x, y: s.y,
     minWidth: 820, minHeight: 560,
-    title: 'Wickline CFD', icon: ICON, backgroundColor: BG, show: false,
+    title: 'AlbertosCharts', icon: ICON, backgroundColor: BG, show: false,
     webPreferences,
   });
   if (s.maximized) win.maximize();
@@ -200,6 +223,38 @@ function setupCapital() {
   });
 }
 
+// --- Journal de backtesting: un archivo JSON en la carpeta de la app, con copia de seguridad ---------
+const journalDir = () => path.join(app.getPath('userData'), 'journal');
+const MAX_JOURNAL = 50 * 1024 * 1024;
+
+function setupJournal() {
+  const fromApp = (e) => isAppUrl(e.senderFrame?.url || '');
+  ipcMain.handle('journal:load', (e) => {
+    if (!fromApp(e)) return null;
+    for (const f of ['journal.json', 'journal.bak.json']) {
+      try {
+        const text = readFileSync(path.join(journalDir(), f), 'utf8');
+        JSON.parse(text); // válido
+        return text;
+      } catch { /* siguiente */ }
+    }
+    return null;
+  });
+  ipcMain.handle('journal:save', (e, text) => {
+    if (!fromApp(e) || typeof text !== 'string' || text.length > MAX_JOURNAL) return false;
+    try { JSON.parse(text); } catch { return false; }
+    const dir = journalDir();
+    mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'journal.json');
+    // Guardado atómico: archivo temporal + renombrar; la versión anterior queda como copia.
+    try { if (existsSync(file)) cpSync(file, path.join(dir, 'journal.bak.json')); } catch { /* sin copia */ }
+    const tmp = `${file}.tmp`;
+    writeFileSync(tmp, text, { mode: 0o600 });
+    renameSync(tmp, file);
+    return true;
+  });
+}
+
 function setupDesktopExtras() {
   const fromApp = (e) => isAppUrl(e.senderFrame?.url || '');
   ipcMain.handle('oanda:get', (e) => (fromApp(e) ? { env: oandaCfg.env, hasToken: !!oandaCfg.token } : null));
@@ -284,6 +339,7 @@ app.whenReady().then(async () => {
   loadCapital();
   setupDesktopExtras();
   setupCapital();
+  setupJournal();
   try {
     origin = await startLocalServer();
   } catch (e) {

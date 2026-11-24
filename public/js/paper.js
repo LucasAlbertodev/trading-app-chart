@@ -160,6 +160,9 @@ export class PaperAccount {
     const bad = this.checkBracket(p.qty > 0 ? 'buy' : 'sell', ref, next.sl, next.tp, true);
     if (bad) return { ok: false, error: bad };
     Object.assign(p, next);
+    // El primer stop y objetivo puestos a una posición miden su riesgo inicial (múltiplo R).
+    if (p.sl0 == null && next.sl != null) p.sl0 = next.sl;
+    if (p.tp0 == null && next.tp != null) p.tp0 = next.tp;
     return { ok: true };
   }
 
@@ -335,6 +338,7 @@ export class PaperAccount {
         id: `t${++this.seq}`, symbol, side: dir > 0 ? 'long' : 'short', qty: close, entry: p.avg, exit: price,
         pnl: round(gross - entryComm - exitComm, 8), pnlPct: ((price - p.avg) / p.avg) * 100 * dir,
         entryTime: p.opened, exitTime: time, reason,
+        sl: p.sl0 ?? null, tp: p.tp0 ?? null, commission: round(entryComm + exitComm, 8),
       };
       this.trades.push(trade);
       fill.trade = trade.id;
@@ -357,6 +361,8 @@ export class PaperAccount {
     p.qty = next;
     if (order.sl != null) p.sl = order.sl;
     if (order.tp != null) p.tp = order.tp;
+    if (p.sl0 == null && order.sl != null) p.sl0 = order.sl;
+    if (p.tp0 == null && order.tp != null) p.tp0 = order.tp;
     return out;
   }
 }

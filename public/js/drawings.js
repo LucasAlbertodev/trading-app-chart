@@ -65,6 +65,18 @@ const store = {
 };
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
+
+// Visibilidad por temporalidad (como en TradingView): cada dibujo puede verse en minutos, horas,
+// días, semanas y/o meses. Sin `vis` = en todas. Grupo de una temporalidad: su unidad.
+export const VIS_GROUPS = ['m', 'h', 'D', 'W', 'M'];
+export const visGroupOf = (unit) => (VIS_GROUPS.includes(unit) ? unit : 'm');
+export const isVisibleIn = (d, group) => !d.vis || d.vis[group] !== false;
+/** Preferencia para dibujos nuevos: 'all' (todas las temporalidades) o 'current' (solo la actual). */
+export const newDrawingVis = {
+  get() { try { return localStorage.getItem('wickline.drawVisDefault') === '"current"' ? 'current' : 'all'; } catch { return 'all'; } },
+  set(v) { try { localStorage.setItem('wickline.drawVisDefault', JSON.stringify(v === 'current' ? 'current' : 'all')); } catch { /* ignore */ } },
+};
+const visOnlyIn = (group) => Object.fromEntries(VIS_GROUPS.map((g) => [g, g === group]));
 const POINT_KEYS = ['p1', 'p2', 'p3'];
 
 export class DrawingLayer {
@@ -80,6 +92,7 @@ export class DrawingLayer {
     this.key = null;
     this.bars = [];
     this.tfSec = 3600;
+    this.group = 'h'; // grupo de visibilidad de la temporalidad actual
     this.chart = null;
     this.series = null;
     this.drag = null;
@@ -100,9 +113,10 @@ export class DrawingLayer {
   priceAxisViews() { return this._axisViews; }
 
   // --- context ----------------------------------------------------------------
-  setContext(symbolKey, tfSec) {
+  setContext(symbolKey, tfSec, unit = null) {
     this.key = symbolKey;
     this.tfSec = tfSec;
+    this.group = visGroupOf(unit || (tfSec >= 2419200 ? 'M' : tfSec >= 604800 ? 'W' : tfSec >= 86400 ? 'D' : tfSec >= 3600 ? 'h' : 'm'));
     this.items = store.load(symbolKey).filter((d) => TOOLS[d.type]);
     this.pending = null;
     this.select(null);
@@ -120,6 +134,23 @@ export class DrawingLayer {
   }
 
   get selected() { return this.items.find((d) => d.id === this.selectedId) || null; }
+
+  /** Los dibujos que se ven en la temporalidad actual. */
+  get shown() { return this.items.filter((d) => isVisibleIn(d, this.group)); }
+
+  /** Cambia en qué temporalidades se ve el dibujo seleccionado. vis: { m, h, D, W, M }. */
+  setSelectedVis(vis) {
+    const d = this.selected;
+    if (!d) return;
+    const all = VIS_GROUPS.every((g) => vis[g] !== false);
+    if (all) delete d.vis; else d.vis = Object.fromEntries(VIS_GROUPS.map((g) => [g, vis[g] !== false]));
+    this._changed(true);
+    if (!isVisibleIn(d, this.group)) this.select(null); // ya no se ve aquí
+    else this.onSelect?.(d);
+  }
+
+  /** Visibilidad inicial de un dibujo nuevo, según la preferencia. */
+  _newVis() { return newDrawingVis.get() === 'current' ? visOnlyIn(this.group) : undefined; }
 
   select(id) {
     if (id === this.selectedId) return;
@@ -159,7 +190,7 @@ export class DrawingLayer {
 
   _changed(save) {
     if (save && this.key) store.save(this.key, this.items);
-    this._axisViews = this.items.filter((d) => d.type === 'hline' || d.type === 'hray').map((d) => ({
+    this._axisViews = this.shown.filter((d) => d.type === 'hline' || d.type === 'hray').map((d) => ({
       coordinate: () => this.series?.priceToCoordinate(d.p1.price) ?? -1000,
       text: () => this.formatPrice(d.p1.price),
       textColor: () => '#FFFFFF',
@@ -234,6 +265,8 @@ export class DrawingLayer {
     const spec = TOOLS[this.tool];
     if (spec.points === 1) {
       const item = { id: crypto.randomUUID(), type: this.tool, p1: p, p2: { ...p }, color: spec.color };
+      const vis = this._newVis();
+      if (vis) item.vis = vis;
       if (this.tool === 'text') item.text = t('draw.tool.text');
       this.items.push(item);
       this._changed(true);
@@ -258,6 +291,8 @@ export class DrawingLayer {
     else this.pending.p2 = p;
     const item = this.pending;
     delete item.step;
+    const vis = this._newVis();
+    if (vis) item.vis = vis;
     if (item.type === 'long' || item.type === 'short') {
       // Stop starts at the same distance on the other side (1:1 risk/reward); drag it to adjust.
       item.p3 = { time: item.p1.time, price: item.p1.price - (item.p2.price - item.p1.price) };
@@ -349,7 +384,7 @@ export class DrawingLayer {
   hitTest(x, y) {
     if (!this.series || !this.chart) return null;
     let best = null, bestD = HIT_PX;
-    for (const d of this.items) {
+    for (const d of this.shown) {
       const dist = this._distance(d, x, y);
       if (dist != null && dist <= bestD) { best = d.id; bestD = dist; }
     }
@@ -409,7 +444,8 @@ export class DrawingLayer {
   _draw(target) {
     if (!this.series || !this.chart) return;
     target.useMediaCoordinateSpace(({ context: ctx, mediaSize }) => {
-      const list = this.pending ? [...this.items, this.pending] : this.items;
+      const shown = this.shown;
+      const list = this.pending ? [...shown, this.pending] : shown;
       for (const d of list) {
         ctx.save();
         try { this._drawItem(ctx, d, mediaSize, d === this.pending || d.id === this.selectedId); } catch { /* skip */ }

@@ -37,7 +37,7 @@ for (const id of Object.keys(DICTS).filter((x) => x !== 'en')) {
   const d = DICTS[id];
   ok(`${id} has exactly the English keys`, () => {
     // Fork personal: OANDA/GPU solo en inglés y español (los demás idiomas usan el inglés).
-    const OPTIONAL = /^(feed\.oandaNeedsApp|app\.src\.(oanda|capital)|app\.oanda\.|app\.capital\.|app\.gpu\.)/;
+    const OPTIONAL = /^(feed\.oandaNeedsApp|app\.src\.(oanda|capital)|app\.oanda\.|app\.capital\.|app\.gpu\.|app\.tz\.|cm\.|draw\.vis\.|app\.hdr\.bt)/;
     const missing = Object.keys(en).filter((k) => !(k in d) && (id === 'es' || !OPTIONAL.test(k)));
     const extra = Object.keys(d).filter((k) => !(k in en));
     assert.deepEqual(missing, [], `${id} is missing ${missing.length} keys: ${missing.slice(0, 20).join(', ')}`);

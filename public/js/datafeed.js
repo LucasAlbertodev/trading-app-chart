@@ -9,6 +9,7 @@ import { apiUrl, dataMode } from './env.js';
 import { YahooDirectStream } from './yahoo-direct.js';
 import { tdBars, tdSearch, tdQuotes } from './twelvedata.js';
 import { store } from './util.js';
+import { getTz, tzOffsetAt } from './tz.js';
 import { t } from './i18n.js';
 import { tfById, basePlan, aggregateUtc, groupBars, utcBucket, sessionStart } from './timeframes.js';
 
@@ -41,7 +42,8 @@ export const sourceName = (full) => SOURCES[parseSymbol(full).source]?.name || '
 export const isCryptoSymbol = (full) => !!SOURCES[parseSymbol(full).source]?.crypto;
 
 /** Seconds to add to UTC so intraday crypto bars show in the viewer's local time. */
-const localOffset = () => -new Date().getTimezoneOffset() * 60;
+// Zona horaria elegida en el reloj (tz.js); por defecto, la del sistema.
+const localOffset = () => tzOffsetAt(getTz());
 
 function decimalsFromTick(tick) {
   const s = String(tick).replace(/0+$/, '');

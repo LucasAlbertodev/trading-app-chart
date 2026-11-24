@@ -6,7 +6,7 @@ import * as LWC from '../vendor/lightweight-charts.mjs';
 import { createFeed, tfById, parseSymbol, displayTicker, isCryptoSymbol, sourceName } from './datafeed.js';
 import { tfIdOf } from './timeframes.js';
 import { INDICATORS, PALETTE, UP, DOWN, defaultParams, indicatorLabel, optionLabel, heikinAshi, heikinAshiAt } from './indicators.js';
-import { DrawingLayer, DRAW_COLORS } from './drawings.js';
+import { DrawingLayer, DRAW_COLORS, VIS_GROUPS, newDrawingVis } from './drawings.js';
 import { BandFill, Countdown, TradeLines } from './primitives.js';
 import { engine, scriptStore } from './scripts.js';
 import { canRunCommunity } from './community.js';
@@ -247,7 +247,17 @@ export class ChartView {
         <div class="db-colors">${DRAW_COLORS.map((c) => `<button data-color="${c}" style="--c:${c}" aria-label="${t('chart.colorAria', { color: c })}"></button>`).join('')}</div>
         <input class="db-text" placeholder="${t('draw.tool.text')}" maxlength="80" hidden>
         <button data-db="alert" title="${t('chart.alertAtPrice')}" hidden>${ICON_BELL}</button>
+        <button data-db="vis" class="db-vis-btn" title="${t('draw.vis.title')}" aria-haspopup="true">${t('draw.vis.btn')}</button>
         <button data-db="delete" title="${t('chart.deleteDel')}">${ICON_TRASH}</button>
+        <div class="db-vis" hidden>
+          <div class="menu-title">${t('draw.vis.title')}</div>
+          ${VIS_GROUPS.map((g) => `<label class="menu-check"><input type="checkbox" data-vis="${g}"> ${t(`draw.vis.${g}`)}</label>`).join('')}
+          <div class="menu-sep"></div>
+          <button type="button" class="layout-opt" data-vis-only>${t('draw.vis.onlyHere')}</button>
+          <button type="button" class="layout-opt" data-vis-all>${t('draw.vis.all')}</button>
+          <div class="menu-sep"></div>
+          <label class="menu-check"><input type="checkbox" data-vis-default> ${t('draw.vis.newOnlyHere')}</label>
+        </div>
       </div>
       <div class="rp-pick" hidden><div class="rp-dim"></div></div>
       <div class="rp-banner" hidden>
@@ -421,6 +431,14 @@ export class ChartView {
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
     }, true);
+    // Clic derecho: menú del gráfico (app.js), con el precio bajo el cursor.
+    this.chartEl.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      this.hooks.onActivate?.(this);
+      const p = this.paneCoords(e);
+      const price = p ? this.main?.coordinateToPrice(p.y) : null;
+      this.hooks.onContextMenu?.(this, { x: e.clientX, y: e.clientY, price: Number.isFinite(price) ? price : null });
+    });
     this.chartEl.addEventListener('click', (e) => {
       const start = down;
       down = null;
@@ -496,6 +514,9 @@ export class ChartView {
       const color = e.target.closest('[data-color]')?.dataset.color;
       if (color) { this.drawings.updateSelected({ color }); return; }
       const act = e.target.closest('[data-db]')?.dataset.db;
+      if (act === 'vis') { const box = bar.querySelector('.db-vis'); box.hidden = !box.hidden; this.syncVisBox(); return; }
+      if (e.target.closest('[data-vis-only]')) { this.drawings.setSelectedVis(Object.fromEntries(VIS_GROUPS.map((g) => [g, g === this.drawings.group]))); this.syncVisBox(); return; }
+      if (e.target.closest('[data-vis-all]')) { this.drawings.setSelectedVis({}); this.syncVisBox(); return; }
       if (act === 'delete') this.drawings.deleteSelected();
       if (act === 'alert') {
         const d = this.drawings.selected;
@@ -503,13 +524,31 @@ export class ChartView {
       }
     });
     bar.querySelector('.db-text').addEventListener('input', (e) => this.drawings.updateSelected({ text: e.target.value }));
+    bar.querySelector('.db-vis').addEventListener('change', (e) => {
+      if (e.target.matches('[data-vis-default]')) { newDrawingVis.set(e.target.checked ? 'current' : 'all'); return; }
+      const vis = {};
+      bar.querySelectorAll('[data-vis]').forEach((c) => { vis[c.dataset.vis] = c.checked; });
+      this.drawings.setSelectedVis(vis);
+      this.syncVisBox();
+    });
     bar.addEventListener('keydown', (e) => e.stopPropagation());
+  }
+
+  /** Casillas de visibilidad del dibujo seleccionado. */
+  syncVisBox() {
+    const bar = this.q('.draw-bar');
+    const d = this.drawings.selected;
+    bar.querySelectorAll('[data-vis]').forEach((c) => { c.checked = !d?.vis || d.vis[c.dataset.vis] !== false; });
+    bar.querySelector('[data-vis-default]').checked = newDrawingVis.get() === 'current';
+    const partial = !!d?.vis && VIS_GROUPS.some((g) => d.vis[g] === false);
+    bar.querySelector('.db-vis-btn').classList.toggle('on', partial);
   }
 
   showDrawBar(d) {
     const bar = this.q('.draw-bar');
     bar.hidden = !d;
-    if (!d) return;
+    if (!d) { bar.querySelector('.db-vis').hidden = true; return; }
+    this.syncVisBox();
     bar.querySelectorAll('[data-color]').forEach((b) => b.classList.toggle('on', b.dataset.color === d.color));
     const text = bar.querySelector('.db-text');
     text.hidden = d.type !== 'text';
@@ -1206,7 +1245,7 @@ export class ChartView {
       }
       if (this.state.chartType === 'baseline') this.main.applyOptions({ baseValue: { type: 'price', price: this.baselinePrice() } });
       if (this.state.chartType === 'columns') this.main.applyOptions({ base: this.columnsBase() });
-      this.drawings.setContext(this.state.symbol, tf.sec);
+      this.drawings.setContext(this.state.symbol, tf.sec, tf.unit);
       this.renderAll(true);
       this.updateTitle();
       this.applyAlertLines();
@@ -1227,7 +1266,7 @@ export class ChartView {
       this.main.setData([]);
       for (const entry of this.live.values()) for (const { api } of entry.series) api.setData([]);
       this.seriesLen = 0;
-      this.drawings.setContext(this.state.symbol, tf.sec);
+      this.drawings.setContext(this.state.symbol, tf.sec, tf.unit);
       this.drawings.setBars(this.bars);
       this.setStatus('error');
       this.showError(e.message || String(e), e.code);
@@ -1298,6 +1337,14 @@ export class ChartView {
    * timeframe: dragging a price axis turns its auto-scaling off, and the next symbol (at a
    * different price) would otherwise open into empty space.
    */
+  /** Clic derecho → "Recargar datos": vuelve a pedir el historial al proveedor y restablece la vista. */
+  reloadData() { return this.load(); }
+
+  /** Quita todos los indicadores y scripts de este gráfico. */
+  removeAllIndicators() {
+    for (const inst of [...this.state.indicators]) this.removeIndicator(inst.id);
+  }
+
   resetView() {
     const n = this.bars.length;
     const series = [this.main];

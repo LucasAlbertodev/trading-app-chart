@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('wicklineDesktop', {
   // CFD en tiempo real (OANDA): el token se guarda cifrado en la app, nunca en la página.
   getOanda: () => ipcRenderer.invoke('oanda:get'),
   setOanda: (cfg) => ipcRenderer.invoke('oanda:set', { env: cfg?.env, token: cfg?.token }),
+  // Journal de backtesting (archivo en la carpeta de la app).
+  loadJournal: () => ipcRenderer.invoke('journal:load'),
+  saveJournal: (text) => ipcRenderer.invoke('journal:save', String(text)),
   // Aceleración por GPU: Metal / Direct3D 11 / Vulkan / OpenGL / off.
   getGpu: () => ipcRenderer.invoke('gpu:get'),
   setGpu: (backend) => ipcRenderer.invoke('gpu:set', backend),
