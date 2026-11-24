@@ -36,7 +36,9 @@ ok('English has text for every key, and plurals have an "other" form', () => {
 for (const id of Object.keys(DICTS).filter((x) => x !== 'en')) {
   const d = DICTS[id];
   ok(`${id} has exactly the English keys`, () => {
-    const missing = Object.keys(en).filter((k) => !(k in d));
+    // Fork personal: OANDA/GPU solo en inglés y español (los demás idiomas usan el inglés).
+    const OPTIONAL = /^(feed\.oandaNeedsApp|app\.src\.(oanda|capital)|app\.oanda\.|app\.capital\.|app\.gpu\.)/;
+    const missing = Object.keys(en).filter((k) => !(k in d) && (id === 'es' || !OPTIONAL.test(k)));
     const extra = Object.keys(d).filter((k) => !(k in en));
     assert.deepEqual(missing, [], `${id} is missing ${missing.length} keys: ${missing.slice(0, 20).join(', ')}`);
     assert.deepEqual(extra, [], `${id} has keys English doesn't: ${extra.slice(0, 20).join(', ')}`);

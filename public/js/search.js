@@ -1,10 +1,16 @@
-import { searchCrypto, searchYahoo, warmSymbolLists, parseSymbol } from './datafeed.js';
+import { searchCrypto, searchYahoo, searchOanda, searchCapital, warmSymbolLists, parseSymbol } from './datafeed.js';
 import { isServerMode } from './env.js';
 import { $, esc } from './util.js';
 import { t, lang } from './i18n.js';
 
 const p = (full, ticker, name, exchange, type, category) => ({ full, ticker, name, exchange, type, category });
 const POPULAR = [
+  p('CAPITAL:US100', 'US100', 'US Tech 100 (Nasdaq 100 CFD)', 'Capital.com', 'Index CFD', 'cfd'),
+  p('CAPITAL:US500', 'US500', 'US 500 (S&P 500 CFD)', 'Capital.com', 'Index CFD', 'cfd'),
+  p('CAPITAL:US30', 'US30', 'Wall Street 30 (Dow CFD)', 'Capital.com', 'Index CFD', 'cfd'),
+  p('CAPITAL:DE40', 'DE40', 'Germany 40 (DAX CFD)', 'Capital.com', 'Index CFD', 'cfd'),
+  p('CAPITAL:GOLD', 'GOLD', 'Gold (CFD)', 'Capital.com', 'Commodity CFD', 'cfd'),
+  p('YAHOO:NQ=F', 'NQ=F', 'Nasdaq 100 E-mini Futures', 'CME', 'Futures', 'futures'),
   p('BINANCE:BTCUSDT', 'BTCUSDT', 'BTC / USDT', 'Binance', 'Crypto', 'crypto'),
   p('BINANCE:ETHUSDT', 'ETHUSDT', 'ETH / USDT', 'Binance', 'Crypto', 'crypto'),
   p('BINANCEF:BTCUSDT', 'BTCUSDT.P', t('feed.perpName', { base: 'BTC', quote: 'USDT' }), 'Binance Futures', 'Crypto perpetual', 'crypto'),
@@ -48,6 +54,8 @@ function sourceOf(r) {
   if (src === 'BINANCE') return { key: 'binance', label: 'Binance' };
   if (src === 'BINANCEF') return { key: 'binance', label: 'Binance Futures' };
   if (src === 'COINBASE') return { key: 'coinbase', label: 'Coinbase' };
+  if (src === 'OANDA') return { key: 'oanda', label: 'OANDA' };
+  if (src === 'CAPITAL') return { key: 'capital', label: 'Capital.com' };
   return isServerMode() ? { key: 'yahoo', label: 'Yahoo' } : { key: 'twelvedata', label: 'Twelve Data' };
 }
 
@@ -81,7 +89,7 @@ function score(r, Q, lower) {
 /** One list from every source, best matches first; ties keep each source's own order. */
 function mergeResults(lists, q) {
   const Q = norm(q), lower = q.toLowerCase();
-  const all = lists.flatMap((list) => list.map((r, i) => ({ r, i, s: score(r, Q, lower) })));
+  const all = lists.flatMap((list) => list.map((r, i) => ({ r, i, s: Math.max(score(r, Q, lower), r.boost || 0) })));
   // Ties keep each source's own order, except prefix matches, where the shorter ticker wins.
   all.sort((a, b) => b.s - a.s || (a.s === 75 ? a.r.ticker.length - b.r.ticker.length : 0) || a.i - b.i);
   const seen = new Set();
@@ -131,12 +139,20 @@ export class SymbolSearch {
     // Drop results for the previous text right away, so Enter never picks a stale row.
     this.crypto = [];
     this.yahoo = [];
+    this.oanda = [];
+    this.capital = [];
     this.render(q);
     if (!q) return;
+    searchOanda(q)
+      .then((rows) => { if (seq === this.seq) { this.oanda = rows; this.render(q); } })
+      .catch(() => {});
     searchCrypto(q)
       .then((rows) => { if (seq === this.seq) { this.crypto = rows; this.render(q); } })
       .catch(() => { if (seq === this.seq) { this.crypto = []; this.render(q); } });
     this.yahooTimer = setTimeout(() => {
+      searchCapital(q)
+        .then((rows) => { if (seq === this.seq) { this.capital = rows; this.render(q); } })
+        .catch(() => {});
       searchYahoo(q)
         .then((rows) => { if (seq === this.seq) { this.yahoo = rows; this.render(q); } })
         .catch(() => { if (seq === this.seq) { this.yahoo = []; this.render(q); } });
@@ -144,13 +160,13 @@ export class SymbolSearch {
   }
 
   render(q) {
-    const rows = q ? mergeResults([this.yahoo, this.crypto], q) : POPULAR;
+    const rows = q ? mergeResults([this.capital || [], this.oanda || [], this.yahoo, this.crypto], q) : POPULAR;
     this.rows = rows;
     let html = q ? '' : `<div class="sr-section">${t('search.popular')}</div>`;
     rows.forEach((r, i) => {
       const src = sourceOf(r);
       // Crypto rows: the exchange is the source. Others: the exchange, then where the data comes from.
-      const exch = src.key === 'binance' || src.key === 'coinbase' ? '' : shortExchange(r.exchange);
+      const exch = src.key === 'binance' || src.key === 'coinbase' || src.key === 'oanda' || src.key === 'capital' ? '' : shortExchange(r.exchange);
       html += `<div class="sr-row" data-i="${i}">
           <span class="sr-ticker">${esc(r.ticker)}</span>
           <span class="sr-name">${esc(r.name)}</span>
@@ -199,7 +215,8 @@ export class SymbolSearch {
     this.close();
     const t = text.toUpperCase().replace(/\s+/g, '');
     const looksCrypto = /^[A-Z0-9]{2,12}(USDT|USDC|FDUSD|BTC|ETH|BNB)$/.test(t);
-    const full = t.includes(':') ? t : looksCrypto ? `BINANCE:${t}` : `YAHOO:${t}`;
+    const looksOanda = /^[A-Z0-9]{2,8}_[A-Z]{3}$/.test(t);
+    const full = t.includes(':') ? t : looksOanda ? `OANDA:${t}` : looksCrypto ? `BINANCE:${t}` : `YAHOO:${t}`;
     this.onSelect(full, this.mode);
   }
 

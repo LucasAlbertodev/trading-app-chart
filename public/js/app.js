@@ -2,7 +2,7 @@
 // (watchlist, markets, alerts), search, indicators dialog, script editor, pop-out windows
 // and keyboard shortcuts. Each chart is a ChartView.
 
-import { parseSymbol, displayTicker, SOURCES, loadUniverse, extendedHours } from './datafeed.js';
+import { parseSymbol, displayTicker, SOURCES, loadUniverse, extendedHours, oandaStatus, capitalStatus } from './datafeed.js';
 import { tfById, tfIdOf } from './timeframes.js';
 import { TimeframeBar, IntervalBox } from './timeframe-ui.js';
 import { INDICATORS, CATEGORIES, categoryLabel } from './indicators.js';
@@ -88,9 +88,10 @@ const TOOL_GROUPS = [
 ];
 
 const DEFAULT_WATCHLIST = [
-  'BINANCE:BTCUSDT', 'BINANCE:ETHUSDT', 'BINANCE:SOLUSDT', 'BINANCEF:BTCUSDT',
-  'YAHOO:AAPL', 'YAHOO:NVDA', 'YAHOO:TSLA', 'YAHOO:MSFT',
-  'YAHOO:SPY', 'YAHOO:^GSPC', 'YAHOO:EURUSD=X', 'YAHOO:GC=F',
+  // CFD en tiempo real (Capital.com, con tu API key) y sus referencias sin clave (futuros e índices de Yahoo)
+  'CAPITAL:US100', 'CAPITAL:US500', 'CAPITAL:US30', 'CAPITAL:DE40', 'CAPITAL:GOLD',
+  'YAHOO:NQ=F', 'YAHOO:ES=F', 'YAHOO:^NDX', 'YAHOO:^GSPC',
+  'BINANCE:BTCUSDT', 'YAHOO:EURUSD=X', 'YAHOO:NVDA',
 ];
 
 const STATUS_TEXT = {
@@ -529,7 +530,9 @@ function syncHeader() {
   $('#rp-btn').classList.toggle('on', !!(v.replay || v.replayPick));
   $('#rp-btn').title = v.replay || v.replayPick ? t('app.hdr.rpExit') : t('app.hdr.rpTip');
   const src = SOURCES[v.source];
-  $('#source').textContent = src?.crypto
+  $('#source').textContent = src?.cfd
+    ? t(v.source === 'CAPITAL' ? 'app.src.capital' : 'app.src.oanda')
+    : src?.crypto
     ? t('app.src.crypto', { name: src.name })
     : modeNow === 'static'
       ? t('app.src.static')
@@ -574,6 +577,7 @@ function openSettings() {
     ? (IS_DESKTOP ? t('app.set.modeDesktop') : t('app.set.modeServer'))
     : t('app.set.modeStatic');
   openProxySettings(isStatic);
+  openDesktopExtras();
   settingsModal.hidden = false;
   if (isStatic) $('#set-td-key').focus();
 }
@@ -642,6 +646,120 @@ async function saveProxySettings() {
   return false;
 }
 
+
+// --- OANDA (CFD) y GPU: ajustes de la app de escritorio (desktop/preload.cjs) -------------------
+let oandaLoaded = null, gpuLoaded = null, capitalLoaded = null;
+
+async function openCapital(api) {
+  $('#set-capital').hidden = !api?.getCapital;
+  if (!api?.getCapital) return;
+  capitalLoaded = await api.getCapital().catch(() => null);
+  $('#set-capital-env').value = capitalLoaded?.env || 'demo';
+  $('#set-capital-id').value = capitalLoaded?.identifier || '';
+  for (const [id, has] of [['#set-capital-key', capitalLoaded?.hasApiKey], ['#set-capital-pass', capitalLoaded?.hasPassword]]) {
+    $(id).value = '';
+    $(id).placeholder = has ? t('app.oanda.tokenSaved') : '';
+  }
+  const el = $('#set-capital-now');
+  el.className = '';
+  el.textContent = '';
+  if (!capitalLoaded?.hasApiKey) return;
+  el.textContent = t('app.set.checking');
+  const st = await capitalStatus().catch((e) => ({ ok: false, error: e.message }));
+  el.textContent = st.ok ? t('app.capital.ok', { account: st.account || '—' }) : (st.error || t('app.capital.fail'));
+  el.className = st.ok ? 'ok' : 'bad';
+}
+
+async function saveCapital(api) {
+  if (!api?.setCapital || !capitalLoaded) return true;
+  const next = {
+    env: $('#set-capital-env').value,
+    identifier: $('#set-capital-id').value.trim(),
+    apiKey: $('#set-capital-key').value.trim(),
+    password: $('#set-capital-pass').value,
+  };
+  const changed = next.apiKey || next.password || next.env !== capitalLoaded.env || next.identifier !== (capitalLoaded.identifier || '');
+  if (!changed) return true;
+  $('#set-status').textContent = t('app.set.checking');
+  $('#set-status').className = 'form-note set-status';
+  const r = await api.setCapital(next).catch((e) => ({ ok: false, error: e.message }));
+  if (r?.ok) return true;
+  $('#set-status').textContent = r?.error || t('app.capital.fail');
+  $('#set-status').className = 'form-note set-status bad';
+  return false;
+}
+
+async function openDesktopExtras() {
+  const api = window.wicklineDesktop;
+  openCapital(api);
+  $('#set-oanda').hidden = !api?.getOanda;
+  $('#set-gpu').hidden = !api?.getGpu;
+  if (!api?.getOanda) return;
+  oandaLoaded = await api.getOanda().catch(() => null);
+  $('#set-oanda-env').value = oandaLoaded?.env || 'practice';
+  $('#set-oanda-token').value = '';
+  $('#set-oanda-token').placeholder = oandaLoaded?.hasToken ? t('app.oanda.tokenSaved') : t('app.oanda.tokenPh');
+  showOandaNow();
+  gpuLoaded = await api.getGpu().catch(() => null);
+  if (gpuLoaded) {
+    const sel = $('#set-gpu-backend');
+    for (const o of sel.options) o.hidden = !gpuLoaded.available.includes(o.value);
+    sel.value = gpuLoaded.backend;
+    $('#set-gpu-now').textContent = gpuSummary(gpuLoaded);
+  }
+}
+
+async function showOandaNow() {
+  const el = $('#set-oanda-now');
+  el.className = '';
+  if (!oandaLoaded?.hasToken) { el.textContent = ''; return; }
+  el.textContent = t('app.set.checking');
+  const st = await oandaStatus().catch((e) => ({ ok: false, error: e.message }));
+  el.textContent = st.ok ? t('app.oanda.ok', { account: st.account, n: st.instruments }) : (st.error || t('app.oanda.fail'));
+  el.className = st.ok ? 'ok' : 'bad';
+}
+
+function gpuSummary(g) {
+  const name = { metal: 'Metal', d3d11: 'Direct3D 11', vulkan: 'Vulkan', gl: 'OpenGL', off: t('app.gpu.software'), swiftshader: 'SwiftShader' }[g.active] || g.active;
+  const canvas = g.status?.['2d_canvas'] || '';
+  const hw = canvas.startsWith('enabled') ? t('app.gpu.hw') : t('app.gpu.sw');
+  return `${t('app.gpu.now', { api: name, gpu: g.renderer || '?' })} · ${hw}`;
+}
+
+async function saveDesktopExtras() {
+  const api = window.wicklineDesktop;
+  if (!(await saveCapital(api))) return false;
+  if (!api?.setOanda) return true;
+  const token = $('#set-oanda-token').value.trim();
+  const env = $('#set-oanda-env').value;
+  if (token || (oandaLoaded && env !== oandaLoaded.env)) {
+    const r = await api.setOanda({ token, env }).catch((e) => ({ ok: false, error: e.message }));
+    if (!r?.ok) {
+      $('#set-status').textContent = r?.error || t('app.oanda.fail');
+      $('#set-status').className = 'form-note set-status bad';
+      return false;
+    }
+  }
+  const backend = $('#set-gpu-backend').value;
+  if (gpuLoaded && backend !== gpuLoaded.backend) {
+    await api.setGpu(backend); // reinicia la app
+    return false;
+  }
+  return true;
+}
+
+async function showGpuBadge() {
+  const api = window.wicklineDesktop;
+  if (!api?.getGpu) return;
+  const g = await api.getGpu().catch(() => null);
+  if (!g) return;
+  const el = $('#gpu-badge');
+  el.hidden = false;
+  el.textContent = `GPU · ${{ metal: 'Metal', d3d11: 'D3D11', vulkan: 'Vulkan', gl: 'OpenGL', off: 'CPU', swiftshader: 'CPU' }[g.active] || g.active}`;
+  el.title = gpuSummary(g);
+}
+showGpuBadge();
+
 $('#settings-btn').addEventListener('click', openSettings);
 $('#data-mode').addEventListener('click', openSettings);
 settingsModal.addEventListener('mousedown', (e) => { if (e.target === settingsModal) settingsModal.hidden = true; });
@@ -665,6 +783,7 @@ $('#set-test').addEventListener('click', async () => {
 $('#settings-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!(await saveProxySettings())) return;
+  if (!(await saveDesktopExtras())) return;
   settings.set('tdKey', $('#set-td-key').value.trim());
   settings.set('tdRate', Math.max(1, Math.round(Number($('#set-td-rate').value) || 8)));
   settings.set('apiBase', $('#set-api').value.trim());

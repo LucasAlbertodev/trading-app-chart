@@ -1,3 +1,9 @@
+# Wickline CFD (personal fork)
+
+Personal fork of Wickline adding real-time Capital.com CFDs (`lib/capital.mjs`), OANDA v20 (`lib/oanda.mjs`) and selectable GPU backends for the charts — Metal, Direct3D 11, Vulkan (`desktop/gpu.mjs`). Spanish details: [README.es.md](README.es.md). Build for Intel Macs: `npm run dist:mac-intel`.
+
+---
+
 # Wickline
 
 English · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Português (Brasil)](README.pt-BR.md)

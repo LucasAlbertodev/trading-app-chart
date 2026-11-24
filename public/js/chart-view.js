@@ -114,7 +114,7 @@ function normalizeIndicator(i) {
 
 export function normalizeChartState(s = {}) {
   return {
-    symbol: typeof s.symbol === 'string' && s.symbol ? s.symbol.slice(0, 100) : 'BINANCE:BTCUSDT',
+    symbol: typeof s.symbol === 'string' && s.symbol ? s.symbol.slice(0, 100) : 'CAPITAL:US100',
     tf: tfIdOf(s.tf) || '1h', // any timeframe (timeframes.js); saved ids stay as they are
     chartType: CHART_TYPES.some(([k]) => k === s.chartType) ? s.chartType : 'candles',
     logScale: !!s.logScale,

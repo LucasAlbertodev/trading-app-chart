@@ -21,6 +21,8 @@ export const SOURCES = {
   BINANCEF: { name: 'Binance Futures', crypto: true, suffix: '.P' },
   COINBASE: { name: 'Coinbase', crypto: true },
   YAHOO: { name: 'Yahoo Finance', crypto: false },
+  OANDA: { name: 'OANDA CFD', crypto: false, cfd: true },
+  CAPITAL: { name: 'Capital.com CFD', crypto: false, cfd: true },
 };
 
 export function parseSymbol(full) {
@@ -625,8 +627,207 @@ class YahooFeed {
   }
 }
 
+// ---------------------------------------------------------------------------
+// OANDA: CFD de índices (NAS100_USD, SPX500_USD…), metales y forex en tiempo real.
+// Pasa por el servidor de la app (lib/oanda.mjs), que guarda el token del usuario.
+// ---------------------------------------------------------------------------
+
+const DAY_SEC = 86400;
+const nyParts = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/New_York', hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric',
+});
+function nyOffset(t) {
+  const p = Object.fromEntries(nyParts.formatToParts(new Date(t * 1000)).map((x) => [x.type, x.value]));
+  return Math.round((Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) / 1000 - Math.floor(t / 60) * 60) / 60) * 60;
+}
+/** Barra D/W/M (fecha) de un instante UTC: el día de CFD/forex cierra a las 17:00 de Nueva York. */
+function oandaDaily(t, unit) {
+  const day = Math.floor((t + nyOffset(t) + 7 * 3600) / DAY_SEC) * DAY_SEC;
+  if (unit === 'W') { const d = day / DAY_SEC; return (d - ((((d + 3) % 7) + 7) % 7)) * DAY_SEC; }
+  if (unit === 'M') { const d = new Date(day * 1000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000; }
+  return day;
+}
+
+/** Barra D/W/M de un tick cuando el bróker dice a qué hora UTC empiezan sus velas diarias. */
+function dailyFromStart(t, unit, dayStart) {
+  const start = Math.floor((t - dayStart) / DAY_SEC) * DAY_SEC + dayStart;
+  const day = Math.floor((start + DAY_SEC / 2) / DAY_SEC) * DAY_SEC;
+  if (unit === 'W') { const d = day / DAY_SEC; return (d - ((((d + 3) % 7) + 7) % 7)) * DAY_SEC; }
+  if (unit === 'M') { const d = new Date(day * 1000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1) / 1000; }
+  return day;
+}
+
+/** Una sola conexión SSE por página y bróker para todos sus instrumentos (gráficos, listas, alertas). */
+class BrokerLive {
+  constructor(api) { this.api = api; this.subs = new Map(); this.es = null; this.key = ''; this.timer = null; }
+  subscribe(symbol, cb) {
+    if (!this.subs.has(symbol)) this.subs.set(symbol, new Set());
+    this.subs.get(symbol).add(cb);
+    this.schedule();
+    return () => {
+      const set = this.subs.get(symbol);
+      if (!set) return;
+      set.delete(cb);
+      if (!set.size) this.subs.delete(symbol);
+      this.schedule();
+    };
+  }
+  schedule() { clearTimeout(this.timer); this.timer = setTimeout(() => this.reopen(), 200); }
+  reopen() {
+    const key = [...this.subs.keys()].sort().join(',');
+    if (key === this.key && this.es) return;
+    this.key = key;
+    this.es?.close();
+    this.es = null;
+    if (!key) return;
+    this.es = new EventSource(apiUrl(`${this.api}/stream?symbols=${encodeURIComponent(key)}`));
+    this.es.onmessage = (e) => {
+      let t;
+      try { t = JSON.parse(e.data); } catch { return; }
+      const set = this.subs.get(t.s);
+      if (set) for (const cb of set) cb(t);
+    };
+  }
+}
+export const oandaLive = new BrokerLive('api/oanda');
+export const capitalLive = new BrokerLive('api/capital');
+const BROKERS = {
+  OANDA: { api: 'api/oanda', live: oandaLive },
+  CAPITAL: { api: 'api/capital', live: capitalLive },
+};
+
+let oandaList = null;
+export const oandaInstruments = () => (oandaList ||= getJson(apiUrl('api/oanda/instruments')).catch((e) => { oandaList = null; throw e; }));
+export const oandaStatus = () => getJson(apiUrl('api/oanda/status'));
+export const capitalStatus = () => getJson(apiUrl('api/capital/status'));
+
+/** CFD de un bróker (OANDA, Capital.com) a través del servidor de la app, que guarda las credenciales. */
+class BrokerFeed {
+  constructor(src, ticker, tf) {
+    this.src = src;
+    this.cfg = BROKERS[src];
+    this.ticker = src === 'OANDA' ? ticker.toUpperCase() : ticker;
+    this.tf = tf;
+    this.shift = tf.daily ? 0 : localOffset(); // intradía en la hora local del usuario
+    this.canLoadMore = true;
+    this.closed = false;
+    this.unsub = null;
+    this.timer = null;
+    this.quietTimer = null;
+    this.dayStart = null;
+  }
+
+  url(before, count) {
+    const p = new URLSearchParams({ instrument: this.ticker, tf: this.tf.id });
+    if (before != null) p.set('before', String(before));
+    if (count) p.set('count', String(count));
+    return apiUrl(`${this.cfg.api}/candles?${p}`);
+  }
+
+  toChart(bars) { return this.shift ? bars.map((b) => ({ ...b, time: b.time + this.shift })) : bars; }
+
+  async loadInitial() {
+    if ((await dataMode()) !== 'server') throw new Error(t('feed.oandaNeedsApp'));
+    const res = await getJson(this.url(null));
+    this.canLoadMore = res.full;
+    if (Number.isFinite(res.meta?.dayStart)) this.dayStart = res.meta.dayStart;
+    return { meta: { ...res.meta, tzOffset: this.shift }, bars: this.toChart(res.bars) };
+  }
+
+  async loadOlder(firstTime) {
+    if (!this.canLoadMore) return [];
+    const res = await getJson(this.url(firstTime - this.shift));
+    this.canLoadMore = res.full;
+    return this.toChart(res.bars).filter((b) => b.time < firstTime);
+  }
+
+  /** Barra de un tick (hora del gráfico): D/W/M según el día del bróker; intradía en rejilla UTC. */
+  bucketOf(time) {
+    const utc = time - this.shift;
+    if (this.tf.daily) return this.dayStart != null ? dailyFromStart(utc, this.tf.unit, this.dayStart) : oandaDaily(utc, this.tf.unit);
+    return utcBucket(utc, this.tf) + this.shift;
+  }
+
+  subscribe({ bars, tick, status }) {
+    let streaming = false;
+    const quiet = () => {
+      clearTimeout(this.quietTimer);
+      // Mercado cerrado (fin de semana, pausa diaria): sin precios en 60 s.
+      this.quietTimer = setTimeout(() => { streaming = false; if (!this.closed) status('polling'); }, 60000);
+    };
+    status('connecting');
+    this.unsub = this.cfg.live.subscribe(this.ticker, (m) => {
+      if (this.closed) return;
+      if (!streaming) { streaming = true; status('live'); }
+      quiet();
+      // Los CFD no tienen volumen real: cada cambio de precio cuenta como 1 (volumen de ticks, como MT4/MT5).
+      tick({ time: Math.floor(m.t / 1000) + this.shift, price: m.p, volume: 1 });
+    });
+    quiet();
+    // Re-sincroniza con las velas oficiales cada 15 s (corrige máximos/mínimos y volumen).
+    const poll = async () => {
+      if (this.closed) return;
+      try {
+        const res = await getJson(this.url(null, 10));
+        if (!this.closed) bars(this.toChart(res.bars.slice(-10)));
+      } catch {
+        if (!this.closed && !streaming) status('error');
+      }
+      if (!this.closed) this.timer = setTimeout(poll, 15000);
+    };
+    this.timer = setTimeout(poll, 15000);
+  }
+
+  close() {
+    this.closed = true;
+    clearTimeout(this.timer);
+    clearTimeout(this.quietTimer);
+    this.unsub?.();
+  }
+}
+
+/** Capital.com: búsqueda en sus mercados ("nasdaq" → US100, "sp500" → US500…). */
+export async function searchCapital(query) {
+  if (!query.trim() || (await dataMode()) !== 'server') return [];
+  const Q = query.toUpperCase().replace(/[\s/_-]/g, '');
+  const ALIAS = { NASDAQ: 'US100', NASDAQ100: 'US100', NAS100: 'US100', NDX: 'US100', SP500: 'US500', SPX: 'US500', SPX500: 'US500', DOW: 'US30', DJI: 'US30', DAX: 'DE40', GER40: 'DE40', ORO: 'GOLD', XAUUSD: 'GOLD', PETROLEO: 'OIL_CRUDE', WTI: 'OIL_CRUDE' };
+  const term = ALIAS[Q] || query.trim();
+  const rows = await getJson(apiUrl(`api/capital/search?q=${encodeURIComponent(term)}`)).catch(() => []);
+  return rows.map((r) => ({
+    full: `CAPITAL:${r.epic}`, ticker: r.epic, name: r.name, exchange: 'Capital.com', type: r.type,
+    category: r.category, boost: ALIAS[Q] && r.epic === ALIAS[Q] ? 96 : ALIAS[Q] ? 70 : 0,
+  }));
+}
+
+const OANDA_TYPE = { CFD: 'CFD', METAL: 'Metal CFD', CURRENCY: 'Forex' };
+export async function searchOanda(query, limit = 8) {
+  if (!query.trim() || (await dataMode()) !== 'server') return [];
+  const list = await oandaInstruments().catch(() => []);
+  const Q = query.toUpperCase().replace(/[\s/_-]/g, '');
+  const ALIAS = { NASDAQ: 'NAS100', NDX: 'NAS100', US100: 'NAS100', SP500: 'SPX500', SPX: 'SPX500', US500: 'SPX500', DOW: 'US30', DJI: 'US30', DAX: 'DE30', GER40: 'DE30', ORO: 'XAU', GOLD: 'XAU' };
+  const q = ALIAS[Q] || Q;
+  const scored = [];
+  for (const i of list) {
+    const n = i.name.replace('_', '');
+    const d = i.displayName.toUpperCase().replace(/[\s/_-]/g, '');
+    let rank;
+    if (n === q || n.startsWith(q)) rank = n === q ? 0 : 1;
+    else if (n.includes(q)) rank = 2;
+    else if (d.includes(q)) rank = 3;
+    else continue;
+    scored.push({ i, rank: rank - (i.type === 'CFD' ? 0.5 : 0) });
+  }
+  scored.sort((a, b) => a.rank - b.rank || a.i.name.localeCompare(b.i.name));
+  return scored.slice(0, limit).map(({ i }) => ({
+    full: `OANDA:${i.name}`, ticker: i.name, name: i.displayName, exchange: 'OANDA',
+    type: OANDA_TYPE[i.type] || i.type, category: i.type === 'CURRENCY' ? 'forex' : 'cfd',
+    boost: ALIAS[Q] ? 95 : 0, // "nasdaq", "sp500", "dax"… → el CFD primero
+  }));
+}
+
 export function createFeed(symbol, tf) {
   const { source, ticker } = parseSymbol(symbol);
+  if (source === 'OANDA' || source === 'CAPITAL') return new BrokerFeed(source, ticker, tf);
   if (source === 'BINANCE' || source === 'BINANCEF') return new BinanceFeed(source, ticker, tf);
   if (source === 'COINBASE') return new CoinbaseFeed(ticker, tf);
   return new YahooFeed(ticker, tf);
@@ -826,7 +1027,9 @@ export class QuoteStream {
     }
     for (const src of ['BINANCE', 'BINANCEF']) if (by[src]) this.startBinance(src, by[src], gen);
     if (by.COINBASE) this.startCoinbase(by.COINBASE, gen);
-    const yahoo = Object.entries(by).filter(([k]) => !SOURCES[k]?.crypto).flatMap(([, v]) => v);
+    if (by.OANDA) this.startBroker('OANDA', by.OANDA, gen);
+    if (by.CAPITAL) this.startBroker('CAPITAL', by.CAPITAL, gen);
+    const yahoo = Object.entries(by).filter(([k]) => !SOURCES[k]?.crypto && !SOURCES[k]?.cfd).flatMap(([, v]) => v);
     if (yahoo.length) this.startYahoo(yahoo, gen);
   }
 
@@ -877,6 +1080,33 @@ export class QuoteStream {
       ws.onerror = () => ws.close();
     };
     open();
+  }
+
+  startBroker(src, tickers, gen) {
+    const { api, live } = BROKERS[src];
+    const base = new Map(); // instrumento → { prevClose, precision }
+    for (const ticker of tickers) {
+      this.unsubs.push(live.subscribe(ticker, (m) => {
+        if (gen !== this.gen) return;
+        const b = base.get(ticker) || {};
+        this.onQuote(`${src}:${ticker}`, { price: m.p, change: b.prevClose ? ((m.p - b.prevClose) / b.prevClose) * 100 : null, precision: b.precision });
+      }));
+    }
+    const poll = async () => {
+      if (gen !== this.gen) return;
+      try {
+        if ((await dataMode()) === 'server') {
+          const rows = await getJson(apiUrl(`${api}/quotes?symbols=${encodeURIComponent(tickers.join(','))}`));
+          if (gen !== this.gen) return;
+          for (const r of rows) {
+            base.set(r.symbol, { prevClose: r.prevClose, precision: r.precision });
+            this.onQuote(`${src}:${r.symbol}`, { price: r.price, change: r.change, precision: r.precision, name: r.name });
+          }
+        }
+      } catch { /* sin token o sin red: se queda vacío */ }
+      if (gen === this.gen) this.timers.push(setTimeout(poll, 5 * 60000));
+    };
+    poll();
   }
 
   startYahoo(tickers, gen) {

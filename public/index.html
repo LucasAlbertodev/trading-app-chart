@@ -287,6 +287,7 @@
     <span id="update" class="update-pill" hidden><a id="update-link" target="_blank" rel="noopener"></a><button id="update-dismiss" title="Not now" aria-label="Dismiss the update notice" data-i18n-title="upd.notNow" data-i18n-aria-label="upd.dismissAria">×</button></span>
     <span class="spacer"></span>
     <span class="muted hide-sm" data-i18n-html="app.footer">Free &amp; open source · charts by <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a></span>
+    <span id="gpu-badge" class="gpu-badge muted" hidden></span>
     <span id="clock" class="muted"></span>
   </footer>
 
@@ -399,6 +400,39 @@
           <p class="form-note" data-i18n-html="app.set.serverNote">Anyone can run the optional server (<code>npm start</code>) for keyless Yahoo data, screeners and live US lists.
             Leave this empty to use the server of the site you're on, if it has one.</p>
         </details>
+        <!-- App de escritorio: CFD en tiempo real (lib/oanda.mjs) y aceleración por GPU (desktop/gpu.mjs). -->
+        <fieldset id="set-capital" class="set-group" hidden>
+          <legend data-i18n="app.capital.title">Capital.com · CFDs in real time (US100, US500…)</legend>
+          <label><span data-i18n="app.oanda.env">Account</span><select id="set-capital-env" class="field">
+            <option value="demo" data-i18n="app.capital.demo">Demo</option>
+            <option value="live" data-i18n="app.oanda.live">Live</option>
+          </select></label>
+          <label><span data-i18n="app.capital.identifier">Login (email)</span><input id="set-capital-id" class="field" type="email" autocomplete="off" spellcheck="false"></label>
+          <label><span data-i18n="app.capital.apiKey">API key</span><input id="set-capital-key" class="field" type="password" autocomplete="off" spellcheck="false"></label>
+          <label><span data-i18n="app.capital.password">API key password</span><input id="set-capital-pass" class="field" type="password" autocomplete="off" spellcheck="false"></label>
+          <p class="form-note"><span data-i18n="app.capital.note">Settings → API integrations on capital.com (2FA required). The password is the custom one you set for the API key. Stored encrypted in this computer's keychain and sent only to Capital.com. Wickline only reads prices: it never places orders.</span> <span id="set-capital-now"></span></p>
+        </fieldset>
+        <fieldset id="set-oanda" class="set-group" hidden>
+          <legend data-i18n="app.oanda.title">OANDA · CFD in real time (NAS100, SPX500…)</legend>
+          <label><span data-i18n="app.oanda.env">Account</span><select id="set-oanda-env" class="field">
+            <option value="practice" data-i18n="app.oanda.practice">Practice (demo, free)</option>
+            <option value="live" data-i18n="app.oanda.live">Live</option>
+          </select></label>
+          <label><span data-i18n="app.oanda.token">API token</span><input id="set-oanda-token" class="field" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your OANDA v20 token" data-i18n-placeholder="app.oanda.tokenPh"></label>
+          <p class="form-note"><span data-i18n-html="app.oanda.note">Free with a practice account: oanda.com → My Account → Manage API Access. Stored encrypted in this computer's keychain and sent only to OANDA. Read-only: Wickline never places orders.</span> <span id="set-oanda-now"></span></p>
+        </fieldset>
+        <fieldset id="set-gpu" class="set-group" hidden>
+          <legend data-i18n="app.gpu.title">GPU acceleration (charts)</legend>
+          <label><span data-i18n="app.gpu.backend">Graphics backend</span><select id="set-gpu-backend" class="field">
+            <option value="auto" data-i18n="app.gpu.auto">Automatic (Metal on Mac, Direct3D 11 on Windows, Vulkan on Linux)</option>
+            <option value="metal">Metal (macOS)</option>
+            <option value="d3d11">Direct3D 11 (Windows)</option>
+            <option value="vulkan">Vulkan (Windows / Linux)</option>
+            <option value="gl">OpenGL</option>
+            <option value="off" data-i18n="app.gpu.off">Off (software rendering)</option>
+          </select></label>
+          <p class="form-note"><span data-i18n="app.gpu.note">Changing it restarts the app.</span> <span id="set-gpu-now"></span></p>
+        </fieldset>
         <p id="set-status" class="form-note set-status"></p>
         <div class="pop-actions"><button type="button" id="set-test" class="btn-ghost" data-i18n="app.set.testKey" hidden>Test key</button><button type="submit" class="btn-primary" data-i18n="common.save">Save</button></div>
       </form>

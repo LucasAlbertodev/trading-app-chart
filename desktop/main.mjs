@@ -2,13 +2,16 @@
 // Runs the built-in server on this computer — so stocks, ETFs, forex and futures work without
 // any key, using the user's own internet connection — and shows the app in its own window.
 
-import { app, BrowserWindow, ipcMain, Menu, session, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, session, shell } from 'electron';
 import { readFileSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { startServer } from '../server.mjs';
+import { startServer, setOandaConfig, setCapitalConfig } from '../server.mjs';
 import { setupProxy } from './proxy.mjs';
+import { applyGpuSwitches, watchGpu, gpuState, setGpuBackend } from './gpu.mjs';
+import { oandaStatus } from '../lib/oanda.mjs';
+import { capitalStatus } from '../lib/capital.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ICON = path.join(HERE, '..', 'build', 'icon.png');
@@ -26,6 +29,10 @@ if (SMOKE) {
   rmSync(profile, { recursive: true, force: true });
   app.setPath('userData', profile);
 }
+
+// GPU: Metal (Mac), Direct3D 11 (Windows) o Vulkan (Linux), antes de que arranque Chromium.
+applyGpuSwitches();
+watchGpu();
 
 if (!app.requestSingleInstanceLock()) app.quit();
 app.setAppUserModelId('io.github.wickline.desktop'); // desktop notifications on Windows
@@ -67,13 +74,13 @@ function createMainWindow() {
   const win = new BrowserWindow({
     width: s.width || 1440, height: s.height || 900, x: s.x, y: s.y,
     minWidth: 820, minHeight: 560,
-    title: 'Wickline', icon: ICON, backgroundColor: BG, show: false,
+    title: 'Wickline CFD', icon: ICON, backgroundColor: BG, show: false,
     webPreferences,
   });
   if (s.maximized) win.maximize();
   win.once('ready-to-show', () => { if (!SMOKE) win.show(); });
   for (const ev of ['resize', 'move', 'close']) win.on(ev, () => saveState(win));
-  win.loadURL(SMOKE ? `${origin}/#s=YAHOO:AAPL&tf=1D` : `${origin}/`);
+  win.loadURL(SMOKE ? `${origin}/#s=${process.env.WICKLINE_SMOKE_SYMBOL || 'YAHOO:AAPL'}&tf=${process.env.WICKLINE_SMOKE_TF || '1D'}` : `${origin}/`);
   if (SMOKE) runSmokeTest(win);
   return win;
 }
@@ -121,6 +128,98 @@ app.on('web-contents-created', (_, contents) => {
   }
 });
 
+
+// --- OANDA: token cifrado con el llavero del sistema (safeStorage) ------------------------------
+const oandaPath = () => path.join(app.getPath('userData'), 'oanda.json');
+let oandaCfg = { env: 'practice', token: '' };
+
+function loadOanda() {
+  try {
+    const j = JSON.parse(readFileSync(oandaPath(), 'utf8'));
+    const token = j.enc ? safeStorage.decryptString(Buffer.from(j.token, 'base64')) : (j.token || '');
+    oandaCfg = { env: j.env === 'live' ? 'live' : 'practice', token };
+  } catch { /* sin configurar */ }
+  setOandaConfig(oandaCfg);
+}
+
+function saveOanda(cfg) {
+  const enc = safeStorage.isEncryptionAvailable();
+  const token = enc ? safeStorage.encryptString(cfg.token).toString('base64') : cfg.token;
+  mkdirSync(app.getPath('userData'), { recursive: true });
+  writeFileSync(oandaPath(), JSON.stringify({ env: cfg.env, enc, token }), { mode: 0o600 });
+}
+
+
+// --- Capital.com: API key, login y contraseña cifrados con el llavero del sistema -----------------
+const capitalPath = () => path.join(app.getPath('userData'), 'capital.json');
+let capitalCfg = { env: 'demo', identifier: '', apiKey: '', password: '' };
+const seal = (v) => (safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(v).toString('base64') : v);
+const unseal = (v, enc) => (enc && v ? safeStorage.decryptString(Buffer.from(v, 'base64')) : v || '');
+
+function loadCapital() {
+  try {
+    const j = JSON.parse(readFileSync(capitalPath(), 'utf8'));
+    capitalCfg = {
+      env: j.env === 'live' ? 'live' : 'demo',
+      identifier: unseal(j.identifier, j.enc),
+      apiKey: unseal(j.apiKey, j.enc),
+      password: unseal(j.password, j.enc),
+    };
+  } catch { /* sin configurar */ }
+  setCapitalConfig(capitalCfg);
+}
+
+function saveCapital(c) {
+  mkdirSync(app.getPath('userData'), { recursive: true });
+  writeFileSync(capitalPath(), JSON.stringify({
+    env: c.env, enc: safeStorage.isEncryptionAvailable(),
+    identifier: seal(c.identifier), apiKey: seal(c.apiKey), password: seal(c.password),
+  }), { mode: 0o600 });
+}
+
+function setupCapital() {
+  const fromApp = (e) => isAppUrl(e.senderFrame?.url || '');
+  ipcMain.handle('capital:get', (e) => (fromApp(e) ? {
+    env: capitalCfg.env, identifier: capitalCfg.identifier, hasApiKey: !!capitalCfg.apiKey, hasPassword: !!capitalCfg.password,
+  } : null));
+  ipcMain.handle('capital:set', async (e, input) => {
+    if (!fromApp(e)) return { ok: false };
+    const str = (v, max) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
+    const next = {
+      env: input?.env === 'live' ? 'live' : 'demo',
+      identifier: str(input?.identifier, 200),
+      apiKey: str(input?.apiKey, 300) || capitalCfg.apiKey,
+      password: (typeof input?.password === 'string' && input.password ? input.password.slice(0, 300) : '') || capitalCfg.password,
+    };
+    setCapitalConfig(next);
+    const st = await capitalStatus();
+    if (st.configured && !st.ok) { setCapitalConfig(capitalCfg); return { ok: false, error: st.error }; }
+    capitalCfg = next;
+    try { saveCapital(next); } catch (err) { return { ok: false, error: err.message }; }
+    return { ok: true };
+  });
+}
+
+function setupDesktopExtras() {
+  const fromApp = (e) => isAppUrl(e.senderFrame?.url || '');
+  ipcMain.handle('oanda:get', (e) => (fromApp(e) ? { env: oandaCfg.env, hasToken: !!oandaCfg.token } : null));
+  ipcMain.handle('oanda:set', async (e, input) => {
+    if (!fromApp(e)) return { ok: false };
+    const next = {
+      env: input?.env === 'live' ? 'live' : 'practice',
+      token: typeof input?.token === 'string' && input.token.trim() ? input.token.trim().slice(0, 300) : oandaCfg.token,
+    };
+    setOandaConfig(next);
+    const st = await oandaStatus();
+    if (next.token && !st.ok) { setOandaConfig(oandaCfg); return { ok: false, error: st.error }; }
+    oandaCfg = next;
+    try { saveOanda(next); } catch (err) { return { ok: false, error: err.message }; }
+    return { ok: true };
+  });
+  ipcMain.handle('gpu:get', (e) => (fromApp(e) ? gpuState() : null));
+  ipcMain.handle('gpu:set', (e, backend) => (fromApp(e) ? setGpuBackend(String(backend)) : false));
+}
+
 function buildMenu() {
   if (!isMac) return null;
   return Menu.buildFromTemplate([
@@ -164,7 +263,8 @@ function runSmokeTest(win) {
     })`);
     const shot = process.env.WICKLINE_SMOKE_SHOT;
     if (shot) writeFileSync(shot, (await win.webContents.capturePage()).toPNG());
-    console.log(`SMOKE ${JSON.stringify({ origin, ...info, errors })}`);
+    const gpu = await gpuState().catch(() => null);
+    console.log(`SMOKE ${JSON.stringify({ origin, ...info, gpu: gpu && { active: gpu.active, renderer: gpu.renderer, canvas: gpu.status?.['2d_canvas'], raster: gpu.status?.rasterization, compositing: gpu.status?.gpu_compositing }, errors })}`);
     app.quit();
   };
 }
@@ -180,6 +280,10 @@ app.on('activate', () => { if (origin && !BrowserWindow.getAllWindows().length) 
 
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(buildMenu());
+  loadOanda();
+  loadCapital();
+  setupDesktopExtras();
+  setupCapital();
   try {
     origin = await startLocalServer();
   } catch (e) {

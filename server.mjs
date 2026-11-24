@@ -21,6 +21,10 @@ import { HEATMAP_MARKETS, heatmapMarket, marketStocks } from './lib/heatmap-mark
 import { optionsQuery, optionsBody } from './lib/options.mjs';
 import { communityFile, isCommunityPath } from './lib/community.mjs';
 import { envProxy, onServerProxyChange, setServerProxy } from './lib/proxy.mjs';
+import { OandaStreamer, oandaCandles, oandaInstruments, oandaQuotes, oandaStatus } from './lib/oanda.mjs';
+export { setOandaConfig } from './lib/oanda.mjs';
+import { CapitalStreamer, capitalCandles, capitalQuotes, capitalSearch, capitalStatus } from './lib/capital.mjs';
+export { setCapitalConfig } from './lib/capital.mjs';
 import { parseTf, yahooPlan, aggregateSessions, sessionStart } from './public/js/timeframes.js';
 
 // The app's version (package.json), reported by /api/health for the desktop app's update notice.
@@ -918,6 +922,77 @@ class YahooStreamer {
 const streamer = new YahooStreamer();
 onServerProxyChange(() => streamer.restart());
 
+// OANDA (CFD) en tiempo real: Server-Sent Events con cada cambio de precio (lib/oanda.mjs).
+const oandaStreamer = new OandaStreamer();
+onServerProxyChange(() => oandaStreamer.restart());
+
+const capitalStreamer = new CapitalStreamer();
+onServerProxyChange(() => capitalStreamer.restart());
+
+function handleBrokerStream(url, req, res, streamer, valid) {
+  const symbols = new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter((s) => valid.test(s)).slice(0, 100));
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
+  res.write('retry: 3000\n\n');
+  const client = { symbols, send: (tick) => res.write(`data: ${JSON.stringify(tick)}\n\n`) };
+  streamer.attach(client);
+  const ping = setInterval(() => res.write(': ping\n\n'), 20000);
+  req.on('close', () => { clearInterval(ping); streamer.detach(client); });
+}
+
+// Sin CORS: solo las páginas de la propia app pueden leer datos que usan el token de OANDA.
+function sendPrivateJson(res, status, body) {
+  res.writeHead(status, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
+  res.end(JSON.stringify(body));
+}
+
+/** True para peticiones de las páginas de este mismo servidor (o sin navegador, p. ej. curl). */
+export function sameOriginRequest(req) {
+  const site = req.headers['sec-fetch-site'];
+  if (site && site !== 'same-origin' && site !== 'none') return false;
+  const origin = req.headers.origin;
+  if (origin && origin !== 'null') {
+    try { if (new URL(origin).host !== req.headers.host) return false; } catch { return false; }
+  } else if (origin === 'null') return false;
+  return true;
+}
+
+async function handleOanda(url, req, res) {
+  const p = url.searchParams;
+  // Contra DNS rebinding: solo direcciones de este ordenador.
+  const host = String(req.headers.host || '').replace(/:\d+$/, '');
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(host)) return sendPrivateJson(res, 403, { error: 'Forbidden' });
+  // Solo las páginas de la propia app: otra web abierta en el navegador no puede usar (ni gastar)
+  // tus credenciales del bróker, ni ocupar tus suscripciones en tiempo real.
+  if (!sameOriginRequest(req)) return sendPrivateJson(res, 403, { error: 'Forbidden' });
+  try {
+    switch (url.pathname) {
+      case '/api/oanda/stream': return handleBrokerStream(url, req, res, oandaStreamer, /^[A-Z0-9]{2,12}_[A-Z0-9]{2,12}$/);
+      case '/api/capital/stream': return handleBrokerStream(url, req, res, capitalStreamer, /^[A-Za-z0-9._-]{1,40}$/);
+      case '/api/capital/status': return sendPrivateJson(res, 200, await capitalStatus());
+      case '/api/capital/search': return sendPrivateJson(res, 200, await capitalSearch(p.get('q') || ''));
+      case '/api/capital/quotes':
+        return sendPrivateJson(res, 200, await capitalQuotes((p.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean)));
+      case '/api/capital/candles': {
+        const before = p.has('before') ? Number(p.get('before')) : null;
+        const count = Math.max(1, Math.min(1000, Number(p.get('count')) || 0)) || null;
+        return sendPrivateJson(res, 200, await capitalCandles(p.get('instrument') || '', p.get('tf') || '1h', Number.isFinite(before) ? before : null, p.has('count') ? count : null));
+      }
+      case '/api/oanda/status': return sendPrivateJson(res, 200, await oandaStatus());
+      case '/api/oanda/instruments': return sendPrivateJson(res, 200, await oandaInstruments());
+      case '/api/oanda/candles': {
+        const before = p.has('before') ? Number(p.get('before')) : null;
+        const count = Math.max(1, Math.min(5000, Number(p.get('count')) || 0)) || null;
+        return sendPrivateJson(res, 200, await oandaCandles(p.get('instrument') || '', p.get('tf') || '1h', Number.isFinite(before) ? before : null, p.has('count') ? count : null));
+      }
+      case '/api/oanda/quotes':
+        return sendPrivateJson(res, 200, await oandaQuotes((p.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean)));
+      default: return sendPrivateJson(res, 404, { error: 'Not found' });
+    }
+  } catch (e) {
+    return sendPrivateJson(res, e.status || 502, { error: e.message || String(e) });
+  }
+}
+
 function handleStream(url, req, res) {
   const symbols = new Set((url.searchParams.get('symbols') || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 100));
   res.writeHead(200, {
@@ -951,8 +1026,9 @@ function sendJson(res, status, body) {
 
 async function handleApi(url, req, res) {
   const p = url.searchParams;
-  if (url.pathname === '/api/health') return sendJson(res, 200, { app: 'wickline', version: VERSION, features: ['yahoo', 'stream', 'universe', 'screener', 'stock-screener', 'news', 'calendar'] });
+  if (url.pathname === '/api/health') return sendJson(res, 200, { app: 'wickline', version: VERSION, features: ['yahoo', 'stream', 'universe', 'screener', 'stock-screener', 'news', 'calendar', 'oanda', 'capital'] });
   if (url.pathname === '/api/yahoo/stream') return handleStream(url, req, res);
+  if (url.pathname.startsWith('/api/oanda/') || url.pathname.startsWith('/api/capital/')) return handleOanda(url, req, res);
   try {
     const u = /^\/api\/universe\/(us-stocks|us-etfs)$/.exec(url.pathname);
     if (u) {

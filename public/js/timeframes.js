@@ -97,6 +97,10 @@ export const NATIVE = {
   // Not Yahoo's 90m: it restarts at the open and close (8:30, 9:30 … 15:30, 16:00), which the
   // server's merging of close points would fold together. 90m from 30m has the same 60 days.
   yahoo: { '1m': '1m', '2m': '2m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '60m', '1D': '1d', '1W': '1wk', '1M': '1mo' },
+  // OANDA v20 (CFD): granularidades M1…H12, D, W, M (lib/oanda.mjs).
+  oanda: { '1m': 'M1', '2m': 'M2', '4m': 'M4', '5m': 'M5', '10m': 'M10', '15m': 'M15', '30m': 'M30', '1h': 'H1', '2h': 'H2', '3h': 'H3', '4h': 'H4', '6h': 'H6', '8h': 'H8', '12h': 'H12', '1D': 'D', '1W': 'W', '1M': 'M' },
+  // Capital.com (CFD): MINUTE…HOUR_4, DAY, WEEK (lib/capital.mjs). M se agrupa de días.
+  capital: { '1m': 'MINUTE', '5m': 'MINUTE_5', '15m': 'MINUTE_15', '30m': 'MINUTE_30', '1h': 'HOUR', '4h': 'HOUR_4', '1D': 'DAY', '1W': 'WEEK' },
   twelvedata: { '1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min', '45m': '45min', '1h': '1h', '2h': '2h', '4h': '4h', '8h': '8h', '1D': '1day', '1W': '1week', '1M': '1month' },
 };
 

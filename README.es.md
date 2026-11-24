@@ -1,3 +1,16 @@
+# Wickline CFD (fork personal)
+
+Fork personal de [Wickline](https://github.com/keptaduona/wickline) (MIT) con:
+
+- **CFD en tiempo real de Capital.com** (US100, US500, US30, DE40, GOLD…): precios por WebSocket, historial, búsqueda y watchlist. Configúralo en ⚙ Fuentes de datos → Capital.com con tu email, API key y la contraseña de la API key (Configuración → Integraciones API en capital.com). Solo lectura: la app nunca envía órdenes. Código: `lib/capital.mjs`.
+- **OANDA v20** como alternativa (`lib/oanda.mjs`), con token.
+- **Aceleración por GPU** de los gráficos: Metal (macOS), Direct3D 11 o Vulkan (Windows), Vulkan (Linux), elegible en ⚙. Código: `desktop/gpu.mjs`.
+- Credenciales cifradas en el llavero del sistema; los endpoints de brókers solo responden a la propia app.
+
+Compilar para Mac Intel: `npm install && npm run dist:mac-intel` → `dist/Wickline CFD-Intel-Mac-*.dmg`. Tests: `npm test` (los de comunidad necesitan Docker).
+
+---
+
 # Wickline
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · Español · [Português (Brasil)](README.pt-BR.md)
