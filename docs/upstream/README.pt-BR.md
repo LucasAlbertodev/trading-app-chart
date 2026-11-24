@@ -13,7 +13,7 @@ Plataforma de gráficos gratuita e de código aberto (gráficos de candles para 
 
 **[Baixe o app para desktop](../../releases/latest)** (Windows, macOS, Linux). É só instalar e usar, sem nenhuma configuração.
 
-![Wickline: vários gráficos, indicadores, qualquer tempo gráfico, scripts da comunidade, notícias, replay de candles com simulador, grade de opções e mapa de calor](docs/demo.gif)
+![Wickline: vários gráficos, indicadores, qualquer tempo gráfico, scripts da comunidade, notícias, replay de candles com simulador, grade de opções e mapa de calor](../demo.gif)
 
 ## Download
 

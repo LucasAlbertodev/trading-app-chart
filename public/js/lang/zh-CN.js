@@ -152,7 +152,7 @@ export default {
   'app.set.updates': 'Wickline 有新版本时通知我（会不时查询 GitHub Releases，不会发送任何关于你的信息）',
   'app.set.modeDesktop': '<b>桌面版：无需 API 密钥即可使用全部功能。</b>股票、ETF、外汇、期货和指数数据通过你自己的网络连接从 Yahoo 获取。加密货币数据直接来自交易所。',
   'app.set.modeServer': '<b>已连接到 Wickline 服务器：无需 API 密钥。</b>股票、ETF、外汇、期货和指数数据经由该服务器从 Yahoo 获取。加密货币数据直接来自交易所。',
-  'app.set.modeStatic': '<b>以静态网站运行</b>（无服务器）。加密货币数据直接来自 Binance、Binance Futures 和 Coinbase。股票、ETF、外汇和指数需要在下方添加你自己的免费 Twelve Data 密钥，或使用无需密钥的<a href="https://github.com/keptaduona/wickline/releases/latest" target="_blank" rel="noopener">桌面版</a>。',
+  'app.set.modeStatic': '<b>以静态网站运行</b>（无服务器）。加密货币数据直接来自 Binance、Binance Futures 和 Coinbase。股票、ETF、外汇和指数需要在下方添加你自己的免费 Twelve Data 密钥，或使用无需密钥的<a href="https://github.com/LucasAlbertodev/trading-app-chart/releases/latest" target="_blank" rel="noopener">桌面版</a>。',
   'app.set.tdKey': 'Twelve Data 密钥',
   'app.set.tdKeyPh': '粘贴你的免费 API 密钥',
   'app.set.tdNote': '在本网站查看股票、ETF、外汇和指数时需要（加密货币无需密钥）。<a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">获取免费密钥</a>——每天 800 次请求，日常使用足够。密钥只保存在此浏览器中，并且只发送给 Twelve Data。实时价格来自 Yahoo 的公开数据流，不占用你的请求次数。',

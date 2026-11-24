@@ -152,7 +152,7 @@ export default {
   'app.set.updates': 'Wicklineの新しいバージョンが出たら知らせる（GitHub Releasesを時々確認します。あなたに関する情報は送信されません）',
   'app.set.modeDesktop': '<b>デスクトップアプリ：APIキーなしですべて使えます。</b>株式、ETF、FX、先物、指数はお使いのネット接続から直接Yahooで取得します。暗号資産は取引所から直接取得します。',
   'app.set.modeServer': '<b>Wicklineサーバーに接続中：APIキーは不要です。</b>株式、ETF、FX、先物、指数はサーバー経由でYahooから取得します。暗号資産は取引所から直接取得します。',
-  'app.set.modeStatic': '<b>静的サイトとして動作中</b>（サーバーなし）。暗号資産はBinance、Binance Futures、Coinbaseから直接取得します。株式、ETF、FX、指数には、下で無料のTwelve Dataキーを追加するか、キー不要の<a href="https://github.com/keptaduona/wickline/releases/latest" target="_blank" rel="noopener">デスクトップアプリ</a>をお使いください。',
+  'app.set.modeStatic': '<b>静的サイトとして動作中</b>（サーバーなし）。暗号資産はBinance、Binance Futures、Coinbaseから直接取得します。株式、ETF、FX、指数には、下で無料のTwelve Dataキーを追加するか、キー不要の<a href="https://github.com/LucasAlbertodev/trading-app-chart/releases/latest" target="_blank" rel="noopener">デスクトップアプリ</a>をお使いください。',
   'app.set.tdKey': 'Twelve Dataキー',
   'app.set.tdKeyPh': '無料のAPIキーを貼り付け',
   'app.set.tdNote': 'このサイトで株式、ETF、FX、指数を見るのに必要です（暗号資産にはキー不要）。<a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">無料キーを取得</a>：1日800リクエストで、通常の利用には十分です。キーはこのブラウザーにのみ保存され、Twelve Dataにのみ送信されます。リアルタイム価格はYahooの公開ストリームから取得するため、リクエスト数を消費しません。',

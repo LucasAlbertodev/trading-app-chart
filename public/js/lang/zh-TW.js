@@ -152,7 +152,7 @@ export default {
   'app.set.updates': 'Wickline 推出新版本時通知我（會不定期查詢 GitHub Releases，不會傳送任何關於你的資訊）',
   'app.set.modeDesktop': '<b>桌面版：不需 API 金鑰即可使用所有功能。</b>股票、ETF、外匯、期貨與指數資料透過你自己的網路連線從 Yahoo 取得。加密貨幣資料直接來自交易所。',
   'app.set.modeServer': '<b>已連線至 Wickline 伺服器：不需 API 金鑰。</b>股票、ETF、外匯、期貨與指數資料經由該伺服器從 Yahoo 取得。加密貨幣資料直接來自交易所。',
-  'app.set.modeStatic': '<b>以靜態網站執行</b>（無伺服器）。加密貨幣資料直接來自 Binance、Binance Futures 與 Coinbase。股票、ETF、外匯與指數需在下方新增你自己的免費 Twelve Data 金鑰，或使用不需金鑰的<a href="https://github.com/keptaduona/wickline/releases/latest" target="_blank" rel="noopener">桌面版</a>。',
+  'app.set.modeStatic': '<b>以靜態網站執行</b>（無伺服器）。加密貨幣資料直接來自 Binance、Binance Futures 與 Coinbase。股票、ETF、外匯與指數需在下方新增你自己的免費 Twelve Data 金鑰，或使用不需金鑰的<a href="https://github.com/LucasAlbertodev/trading-app-chart/releases/latest" target="_blank" rel="noopener">桌面版</a>。',
   'app.set.tdKey': 'Twelve Data 金鑰',
   'app.set.tdKeyPh': '貼上你的免費 API 金鑰',
   'app.set.tdNote': '在本網站查看股票、ETF、外匯與指數時需要（加密貨幣永遠不需金鑰）。<a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">取得免費金鑰</a>——每天 800 次請求，一般使用已足夠。金鑰只儲存在此瀏覽器中，也只會傳送給 Twelve Data。即時價格來自 Yahoo 的公開資料串流，不會佔用你的請求次數。',

@@ -13,7 +13,7 @@
 
 **[下載桌面版](../../releases/latest)**（Windows、macOS、Linux）。下載即可使用，不需任何設定。
 
-![Wickline：多圖表版面、指標、任意週期、社群腳本、新聞、K線回放與模擬交易、選擇權鏈、熱力圖](docs/demo.gif)
+![Wickline：多圖表版面、指標、任意週期、社群腳本、新聞、K線回放與模擬交易、選擇權鏈、熱力圖](../demo.gif)
 
 ## 下載
 

@@ -154,7 +154,7 @@ export default {
   'app.set.updates': 'Tell me when a new version of Wickline is out (asks GitHub Releases now and then; nothing about you is sent)',
   'app.set.modeDesktop': '<b>Desktop app: everything works with no API key.</b> Stocks, ETFs, forex, futures and indices come from Yahoo over your own connection. Crypto comes straight from the exchanges.',
   'app.set.modeServer': '<b>Connected to a Wickline server: no API key needed.</b> Stocks, ETFs, forex, futures and indices come from Yahoo through it. Crypto comes straight from the exchanges.',
-  'app.set.modeStatic': '<b>Running as a static website</b> (no server). Crypto comes straight from Binance, Binance Futures and Coinbase. For stocks, ETFs, forex and indices, add your own free Twelve Data key below, or use the <a href="https://github.com/keptaduona/wickline/releases/latest" target="_blank" rel="noopener">desktop app</a>, which needs no key.',
+  'app.set.modeStatic': '<b>Running as a static website</b> (no server). Crypto comes straight from Binance, Binance Futures and Coinbase. For stocks, ETFs, forex and indices, add your own free Twelve Data key below, or use the <a href="https://github.com/LucasAlbertodev/trading-app-chart/releases/latest" target="_blank" rel="noopener">desktop app</a>, which needs no key.',
   'app.set.tdKey': 'Twelve Data key',
   'app.set.tdKeyPh': 'Paste your free API key',
   'app.set.tdNote': 'Needed on this website for stocks, ETFs, forex and indices (crypto never needs a key). <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">Get a free key</a> — 800 requests a day, enough for normal use. It\'s saved only in this browser and sent only to Twelve Data. Live prices come from Yahoo\'s public stream and don\'t use your requests.',

@@ -2,7 +2,7 @@
 // Only the release list is fetched (no data about the user is sent); it can be turned off in
 // Settings.
 
-export const RELEASES_API = 'https://api.github.com/repos/keptaduona/wickline/releases/latest';
+export const RELEASES_API = 'https://api.github.com/repos/LucasAlbertodev/trading-app-chart/releases/latest';
 
 /** True when version `a` (e.g. "0.2.0" or "v0.2.0") is newer than `b`. Pre-release tags are ignored. */
 export function isNewer(a, b) {

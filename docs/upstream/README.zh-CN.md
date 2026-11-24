@@ -13,7 +13,7 @@
 
 **[下载桌面版](../../releases/latest)**（Windows、macOS、Linux）。下载即用，无需任何设置。
 
-![Wickline：多图布局、指标、任意周期、社区脚本、新闻、K 线回放与模拟交易、期权链、热力图](docs/demo.gif)
+![Wickline：多图布局、指标、任意周期、社区脚本、新闻、K 线回放与模拟交易、期权链、热力图](../demo.gif)
 
 ## 下载
 

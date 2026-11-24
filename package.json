@@ -1,6 +1,6 @@
 {
   "name": "wickline-cfd",
-  "version": "0.1.8",
+  "version": "1.0.0",
   "description": "Fork personal de Wickline: CFD en tiempo real (OANDA: NAS100, SPX500…) y gráficos acelerados por GPU (Metal / Direct3D 11 / Vulkan).",
   "license": "MIT",
   "type": "module",
@@ -105,5 +105,9 @@
       "icon": "build/icon.png",
       "artifactName": "${productName}-Linux-${version}.${ext}"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LucasAlbertodev/trading-app-chart.git"
   }
 }

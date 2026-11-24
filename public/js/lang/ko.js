@@ -152,7 +152,7 @@ export default {
   'app.set.updates': 'Wickline 새 버전이 나오면 알려주기 (가끔 GitHub Releases를 확인하며, 사용자 정보는 전송하지 않습니다)',
   'app.set.modeDesktop': '<b>데스크톱 앱: API 키 없이 모든 기능이 작동합니다.</b> 주식, ETF, 외환, 선물, 지수는 사용자의 인터넷 연결로 Yahoo에서 가져옵니다. 암호화폐는 거래소에서 직접 가져옵니다.',
   'app.set.modeServer': '<b>Wickline 서버에 연결됨: API 키가 필요 없습니다.</b> 주식, ETF, 외환, 선물, 지수는 서버를 거쳐 Yahoo에서 가져옵니다. 암호화폐는 거래소에서 직접 가져옵니다.',
-  'app.set.modeStatic': '<b>정적 웹사이트로 실행 중</b> (서버 없음). 암호화폐는 Binance, Binance Futures, Coinbase에서 직접 가져옵니다. 주식, ETF, 외환, 지수를 보려면 아래에 무료 Twelve Data 키를 추가하거나, 키가 필요 없는 <a href="https://github.com/keptaduona/wickline/releases/latest" target="_blank" rel="noopener">데스크톱 앱</a>을 사용하세요.',
+  'app.set.modeStatic': '<b>정적 웹사이트로 실행 중</b> (서버 없음). 암호화폐는 Binance, Binance Futures, Coinbase에서 직접 가져옵니다. 주식, ETF, 외환, 지수를 보려면 아래에 무료 Twelve Data 키를 추가하거나, 키가 필요 없는 <a href="https://github.com/LucasAlbertodev/trading-app-chart/releases/latest" target="_blank" rel="noopener">데스크톱 앱</a>을 사용하세요.',
   'app.set.tdKey': 'Twelve Data 키',
   'app.set.tdKeyPh': '무료 API 키를 붙여넣으세요',
   'app.set.tdNote': '이 웹사이트에서 주식, ETF, 외환, 지수를 보려면 필요합니다 (암호화폐는 키가 필요 없습니다). <a href="https://twelvedata.com/pricing" target="_blank" rel="noopener">무료 키 받기</a> — 하루 800회 요청으로 일반적인 사용에 충분합니다. 키는 이 브라우저에만 저장되고 Twelve Data로만 전송됩니다. 실시간 가격은 Yahoo의 공개 스트림에서 오며 요청 횟수를 차감하지 않습니다.',
