@@ -20,9 +20,25 @@ OPENSSL=/usr/bin/openssl   # macOS's LibreSSL: writes a .p12 that `security impo
 mkdir -p "$DIR"
 chmod 700 "$DIR"
 
-if [ -f "$KC" ] && security find-certificate -c "$NAME" "$KC" >/dev/null 2>&1; then
-  echo "Already set up: $KC"
-  exit 0
+FORCE=0
+[ "${1:-}" = "--force" ] && FORCE=1
+
+# Already set up? The keychain may be locked (it locks on sleep): unlock it before looking.
+# Never replace an existing certificate on our own: a new one means a new app identity, and
+# macOS would ask for the keychain password again.
+if [ -f "$KC" ] && [ "$FORCE" = 0 ]; then
+  if [ -f "$DIR/keychain-password" ]; then
+    security unlock-keychain -p "$(cat "$DIR/keychain-password")" "$KC" 2>/dev/null || true
+  fi
+  if security find-certificate -c "$NAME" "$KC" >/dev/null 2>&1; then
+    echo "Already set up: $KC"
+    security find-certificate -c "$NAME" -Z "$KC" | grep SHA-1
+    exit 0
+  fi
+  echo "A signing keychain exists at $KC but \"$NAME\" could not be read from it." >&2
+  echo "Nothing was changed. To create a new certificate anyway (macOS will ask for the keychain" >&2
+  echo "password once more after the next update), run: bash scripts/signing-setup.sh --force" >&2
+  exit 1
 fi
 
 TMP="$(mktemp -d)"
