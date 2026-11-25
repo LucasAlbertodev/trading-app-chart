@@ -76,7 +76,7 @@ Full reference for the inherited features (shortcuts, scripting API, backtesting
 ### macOS (Intel or Apple Silicon)
 
 1. Build the installer (see [section 4](#4-build-from-source)), or download it from the repository's **Releases** page if one has been published.
-2. Open `AlbertosCharts-Intel-Mac-1.1.1.dmg` and drag **AlbertosCharts** into **Applications**.
+2. Open `AlbertosCharts-Intel-Mac-1.1.2.dmg` and drag **AlbertosCharts** into **Applications**.
 3. Open it from Applications. The app is not signed with a paid Apple certificate, so the first time macOS blocks it:
    - Click **Done** (or **Cancel**). **Do not** move it to the Trash.
    - Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, then confirm.
@@ -108,11 +108,17 @@ cd trading-app-chart
 npm install
 ```
 
+**Mac: one-time signing setup (recommended).** Creates a local code-signing certificate, kept in its own keychain under `~/Library/Application Support/AlbertosCharts-signing/` and never in the repository. Every build is then signed with it, so macOS keeps trusting new versions and stops asking for the keychain password after each update:
+
+```bash
+npm run signing-setup
+```
+
 Then build the installer for your platform:
 
 | Platform | Command | Output (in `dist/`) |
 | --- | --- | --- |
-| Intel Mac | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.1.dmg` and `.zip` |
+| Intel Mac | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.2.dmg` and `.zip` |
 | Mac (as configured in `package.json`) | `npm run dist:mac` | `.dmg` / `.zip` |
 | Windows | `npm run dist:win` | Installer and portable `.exe` |
 | Linux | `npm run dist:linux` | `.AppImage` and `.deb` |
@@ -328,6 +334,7 @@ The charts are drawn on HTML canvas. Chromium (inside Electron) draws that canva
 | *"La API key no es válida"* (invalid key) | Check **Demo/Live** matches the account where you generated the key; the key may be paused, expired or deleted |
 | Chart stuck on "No live trades right now" | The market is closed (weekend, daily break), or more than 40 instruments are open |
 | Black window or flickering | ⚙ → GPU → choose **OpenGL** or **Off**; or start once with `WICKLINE_GPU=gl` ([section 14](#14-configuration-reference)) |
+| After an update, macOS asks to use "albertoscharts Safe Storage" in your keychain | That is the app's own key for your encrypted credentials, so it is safe to allow. Enter your Mac login password and click **Always Allow**. With builds signed by `npm run signing-setup` this happens only once; ad-hoc builds ask again after every update |
 | Can't reach Yahoo, Binance or Capital.com | ⚙ → Network proxy |
 | After upgrading from "Wickline CFD", Capital.com shows "not configured" | Your watchlist, drawings, layouts and settings are copied automatically. Your Capital.com credentials were encrypted under the old app name, so enter them again once in ⚙ |
 | Settings dialog taller than the window | It scrolls, and **Save** stays visible at the bottom. OANDA is folded under *Other brokers* |
