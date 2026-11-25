@@ -76,7 +76,7 @@ Full reference for the inherited features (shortcuts, scripting API, backtesting
 ### macOS (Intel or Apple Silicon)
 
 1. Build the installer (see [section 4](#4-build-from-source)), or download it from the repository's **Releases** page if one has been published.
-2. Open `AlbertosCharts-Intel-Mac-1.1.0.dmg` and drag **AlbertosCharts** into **Applications**.
+2. Open `AlbertosCharts-Intel-Mac-1.1.1.dmg` and drag **AlbertosCharts** into **Applications**.
 3. Open it from Applications. The app is not signed with a paid Apple certificate, so the first time macOS blocks it:
    - Click **Done** (or **Cancel**). **Do not** move it to the Trash.
    - Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, then confirm.
@@ -112,7 +112,7 @@ Then build the installer for your platform:
 
 | Platform | Command | Output (in `dist/`) |
 | --- | --- | --- |
-| Intel Mac | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.0.dmg` and `.zip` |
+| Intel Mac | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.1.dmg` and `.zip` |
 | Mac (as configured in `package.json`) | `npm run dist:mac` | `.dmg` / `.zip` |
 | Windows | `npm run dist:win` | Installer and portable `.exe` |
 | Linux | `npm run dist:linux` | `.AppImage` and `.deb` |

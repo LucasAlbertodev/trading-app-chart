@@ -76,7 +76,7 @@ Referencia completa de las funciones heredadas (atajos, API de scripts, backtest
 ### macOS (Intel o Apple Silicon)
 
 1. Compila el instalador (ver [sección 4](#4-compilar-desde-el-código)), o descárgalo desde **Releases** del repositorio si hay alguno publicado.
-2. Abre `AlbertosCharts-Intel-Mac-1.1.0.dmg` y arrastra **AlbertosCharts** a **Aplicaciones**.
+2. Abre `AlbertosCharts-Intel-Mac-1.1.1.dmg` y arrastra **AlbertosCharts** a **Aplicaciones**.
 3. Ábrela desde Aplicaciones. La app no está firmada con un certificado de pago de Apple, así que la primera vez macOS la bloquea:
    - Pulsa **OK** (o **Cancelar**). **No** la muevas a la papelera.
    - Abre **Ajustes del Sistema → Privacidad y seguridad**, baja hasta el final y pulsa **Abrir igualmente**. Luego confirma.
@@ -112,7 +112,7 @@ Después compila el instalador para tu sistema:
 
 | Sistema | Comando | Resultado (en `dist/`) |
 | --- | --- | --- |
-| Mac Intel | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.0.dmg` y `.zip` |
+| Mac Intel | `npm run dist:mac-intel` | `AlbertosCharts-Intel-Mac-1.1.1.dmg` y `.zip` |
 | Mac (según `package.json`) | `npm run dist:mac` | `.dmg` / `.zip` |
 | Windows | `npm run dist:win` | Instalador y `.exe` portátil |
 | Linux | `npm run dist:linux` | `.AppImage` y `.deb` |

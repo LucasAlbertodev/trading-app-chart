@@ -1245,7 +1245,7 @@ export class ChartView {
       }
       if (this.state.chartType === 'baseline') this.main.applyOptions({ baseValue: { type: 'price', price: this.baselinePrice() } });
       if (this.state.chartType === 'columns') this.main.applyOptions({ base: this.columnsBase() });
-      this.drawings.setContext(this.state.symbol, tf.sec, tf.unit);
+      this.drawings.setContext(this.state.symbol, tf.sec, tf.unit, this.meta.tzOffset || 0);
       this.renderAll(true);
       this.updateTitle();
       this.applyAlertLines();

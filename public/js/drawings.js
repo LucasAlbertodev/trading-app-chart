@@ -113,14 +113,30 @@ export class DrawingLayer {
   priceAxisViews() { return this._axisViews; }
 
   // --- context ----------------------------------------------------------------
-  setContext(symbolKey, tfSec, unit = null) {
+  /**
+   * symbolKey: where the drawings are saved. tz: seconds the chart adds to UTC (meta.tzOffset), or
+   * null when unknown (the chart failed to load). Drawings are saved in UTC (`u: 1`), so they stay
+   * put across timeframes (daily charts use another offset than intraday ones) and time zones.
+   */
+  setContext(symbolKey, tfSec, unit = null, tz = null) {
     this.key = symbolKey;
     this.tfSec = tfSec;
+    this.tz = Number.isFinite(tz) ? tz : 0;
     this.group = visGroupOf(unit || (tfSec >= 2419200 ? 'M' : tfSec >= 604800 ? 'W' : tfSec >= 86400 ? 'D' : tfSec >= 3600 ? 'h' : 'm'));
     this.items = store.load(symbolKey).filter((d) => TOOLS[d.type]);
+    // Older drawings were saved in this chart's time: convert them once to UTC.
+    let migrated = false;
+    if (Number.isFinite(tz)) {
+      for (const d of this.items) {
+        if (d.u) continue;
+        for (const k of POINT_KEYS) if (d[k] && Number.isFinite(d[k].time)) d[k].time -= tz;
+        d.u = 1;
+        migrated = true;
+      }
+    }
     this.pending = null;
     this.select(null);
-    this._changed(false);
+    this._changed(migrated);
   }
 
   setBars(bars) { this.bars = bars; this._request?.(); }
@@ -208,10 +224,18 @@ export class DrawingLayer {
   }
 
   // --- time <-> logical index (works between bars and beyond the last bar) ---
-  logicalFromTime(t) {
+  // Drawing times are UTC; the chart's bars are in chart time (UTC + tz).
+  /** Average seconds between loaded bars (counts nights and weekends), for times before the data. */
+  _backSpacing() {
+    const b = this.bars, n = b.length;
+    return n > 1 ? Math.max(this.tfSec, (b[n - 1].time - b[0].time) / (n - 1)) : this.tfSec;
+  }
+
+  logicalFromTime(utc) {
+    const t = utc + (this.tz || 0);
     const b = this.bars, n = b.length;
     if (!n) return 0;
-    if (t <= b[0].time) return (t - b[0].time) / this.tfSec;
+    if (t <= b[0].time) return (t - b[0].time) / this._backSpacing();
     if (t >= b[n - 1].time) return n - 1 + (t - b[n - 1].time) / this.tfSec;
     let lo = 0, hi = n - 1;
     while (hi - lo > 1) {
@@ -224,13 +248,31 @@ export class DrawingLayer {
   timeFromLogical(l) {
     const b = this.bars, n = b.length;
     if (!n) return 0;
-    if (l <= 0) return Math.round(b[0].time + l * this.tfSec);
-    if (l >= n - 1) return Math.round(b[n - 1].time + (l - (n - 1)) * this.tfSec);
-    const i = Math.floor(l), f = l - i;
-    return Math.round(b[i].time + f * (b[i + 1].time - b[i].time));
+    let t;
+    if (l <= 0) t = b[0].time + l * this._backSpacing();
+    else if (l >= n - 1) t = b[n - 1].time + (l - (n - 1)) * this.tfSec;
+    else {
+      const i = Math.floor(l), f = l - i;
+      t = b[i].time + f * (b[i + 1].time - b[i].time);
+    }
+    return Math.round(t) - (this.tz || 0);
   }
 
-  _x(time) { return this.chart.timeScale().logicalToCoordinate(this.logicalFromTime(time)); }
+  /**
+   * Pixel x of a (possibly fractional) logical index. The chart library only converts whole bar
+   * indexes (a fraction comes back as 0, the left edge), and a point drawn on another timeframe
+   * usually falls between two bars here: interpolate between the bars around it.
+   */
+  _xOfLogical(l) {
+    const ts = this.chart.timeScale();
+    const i = Math.floor(l), f = l - i;
+    const x0 = ts.logicalToCoordinate(i);
+    if (!f || x0 == null) return x0;
+    const x1 = ts.logicalToCoordinate(i + 1);
+    return x1 == null ? x0 : x0 + (x1 - x0) * f;
+  }
+
+  _x(time) { return this._xOfLogical(this.logicalFromTime(time)); }
   _y(price) { return this.series.priceToCoordinate(price); }
 
   /** Chart position under (x, y) in the price pane, with time snapped to a bar. */
@@ -264,7 +306,7 @@ export class DrawingLayer {
     const p = { time: pt.time, price: pt.price };
     const spec = TOOLS[this.tool];
     if (spec.points === 1) {
-      const item = { id: crypto.randomUUID(), type: this.tool, p1: p, p2: { ...p }, color: spec.color };
+      const item = { id: crypto.randomUUID(), type: this.tool, p1: p, p2: { ...p }, color: spec.color, u: 1 };
       const vis = this._newVis();
       if (vis) item.vis = vis;
       if (this.tool === 'text') item.text = t('draw.tool.text');
@@ -275,7 +317,7 @@ export class DrawingLayer {
       return true;
     }
     if (!this.pending) {
-      this.pending = { id: crypto.randomUUID(), type: this.tool, p1: p, p2: { ...p }, color: spec.color, step: 1 };
+      this.pending = { id: crypto.randomUUID(), type: this.tool, p1: p, p2: { ...p }, color: spec.color, step: 1, u: 1 };
       if (this.tool === 'channel') this.pending.p3 = { ...p };
       this._request?.();
       return true;

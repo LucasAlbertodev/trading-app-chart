@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { Journal, migrate, emptyJournal, riskOf } from '../public/js/journal.js';
 import { computeStats } from '../public/js/journal-stats.js';
 import { tzOffsetAt, tzList, offsetLabel, cityName } from '../public/js/tz.js';
-import { isVisibleIn, visGroupOf } from '../public/js/drawings.js';
+import { isVisibleIn, visGroupOf, DrawingLayer } from '../public/js/drawings.js';
 import { PaperAccount } from '../public/js/paper.js';
 
 let failed = 0;
@@ -188,6 +188,57 @@ test('visibilidad de dibujos por tipo de temporalidad', () => {
   const d = { vis: { m: false, h: true, D: true, W: false, M: false } };
   assert.deepEqual(['m', 'h', 'D', 'W', 'M'].map((g) => isVisibleIn(d, g)), [false, true, true, false, false]);
   assert.equal(visGroupOf('x'), 'm');
+});
+
+
+// Drawings across timeframes: a fake chart whose time scale, like Lightweight Charts 5, only
+// converts whole bar indexes (a fraction comes back as 0).
+function layerOn(bars, tfSec, tz, saved) {
+  globalThis.localStorage = { _s: { 'wickline.drawings.X': JSON.stringify(saved) }, getItem(k) { return this._s[k] ?? null; }, setItem(k, v) { this._s[k] = String(v); } };
+  const L = new DrawingLayer({ formatPrice: String });
+  L.chart = { timeScale: () => ({ logicalToCoordinate: (l) => (Number.isInteger(l) ? 100 + l * 10 : 0), width: () => 1000 }) };
+  L.series = { priceToCoordinate: (p) => p };
+  L.setContext('X', tfSec, null, tz);
+  L.setBars(bars);
+  return L;
+}
+const mins = (start, step, n) => Array.from({ length: n }, (_, i) => ({ time: start + i * step }));
+
+test('a point drawn on 1m lands between 5m bars (not at the left edge)', () => {
+  const T0 = utc('2026-11-25T14:00');
+  const L = layerOn(mins(T0, 300, 12), 300, 0, [{ id: 'a', type: 'trend', u: 1, p1: { time: T0 + 120, price: 1 }, p2: { time: T0 + 900, price: 2 } }]);
+  assert.equal(L.logicalFromTime(T0 + 120), 0.4);
+  assert.equal(L._x(T0 + 120), 104, 'between bar 0 (x=100) and bar 1 (x=110)');
+  assert.equal(L._x(T0 + 900), 130);
+});
+
+test('drawings are saved in UTC: same place on intraday and daily charts and in any time zone', () => {
+  const T0 = utc('2026-11-25T14:00');
+  // Old drawing saved in chart time of an UTC−3 chart: converted once to UTC.
+  const L = layerOn(mins(T0 - 3 * 3600, 60, 60), 60, -3 * 3600, [{ id: 'a', type: 'hline', p1: { time: T0 - 3 * 3600 + 600, price: 5 }, p2: { time: T0 - 3 * 3600 + 600, price: 5 } }]);
+  assert.equal(L.items[0].u, 1);
+  assert.equal(L.items[0].p1.time, T0 + 600, 'stored in UTC');
+  assert.equal(L.logicalFromTime(L.items[0].p1.time), 10);
+  assert.equal(JSON.parse(localStorage.getItem('wickline.drawings.X'))[0].p1.time, T0 + 600, 'saved once');
+  // The same drawing on a chart shown in UTC+2: still at the same bar, not converted again.
+  const M = layerOn(mins(T0 + 2 * 3600, 60, 60), 60, 2 * 3600, JSON.parse(localStorage.getItem('wickline.drawings.X')));
+  assert.equal(M.items[0].p1.time, T0 + 600);
+  assert.equal(M.logicalFromTime(M.items[0].p1.time), 10);
+  // timeFromLogical is the inverse (UTC out).
+  assert.equal(M.timeFromLogical(10), T0 + 600);
+  assert.equal(M.timeFromLogical(2.5), T0 + 150);
+});
+
+test('before the loaded history: extrapolates with the average bar spacing (nights, weekends)', () => {
+  const T0 = utc('2026-11-23T00:00');
+  // 1m bars with a 2-day gap in the middle: average spacing ≫ 60 s.
+  const bars = [...mins(T0, 60, 100), ...mins(T0 + 2 * 86400, 60, 100)];
+  const L = layerOn(bars, 60, 0, []);
+  const avg = (bars.at(-1).time - bars[0].time) / (bars.length - 1);
+  const t = T0 - 86400;
+  near(L.logicalFromTime(t), -86400 / avg);
+  assert.ok(L.logicalFromTime(t) > -1440, 'not a day of 1-minute bars to the left');
+  assert.equal(L.timeFromLogical(L.logicalFromTime(t)), t);
 });
 
 console.log(failed ? `\n${failed} failed` : 'all passed');

@@ -1,6 +1,6 @@
 {
   "name": "albertoscharts",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "AlbertosCharts: gráficos estilo TradingView con CFD en tiempo real (Capital.com), backtesting con estadísticas y aceleración por GPU (Metal / Direct3D 11 / Vulkan). Basado en Wickline (MIT).",
   "license": "MIT",
   "type": "module",
