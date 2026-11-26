@@ -119,7 +119,7 @@ export default {
   'app.mode.server': '데이터: AlbertosCharts 서버 (키 불필요)',
   'app.mode.tdKey': '데이터: 암호화폐 + 주식 (내 Twelve Data 키)',
   'app.mode.cryptoOnly': '데이터: 암호화폐만 · 주식은 무료 키를 추가하세요',
-  'app.footer': '무료 오픈 소스 · 차트: <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
+  'app.footer': '차트: <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
   'app.layout.synced': '차트 동기화됨',
   'app.layout.sync': '차트 간 동기화',
   'app.layout.crosshair': '십자선',

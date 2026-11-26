@@ -2,7 +2,7 @@
   "name": "albertoscharts",
   "version": "1.1.2",
   "description": "AlbertosCharts: gráficos estilo TradingView con CFD en tiempo real (Capital.com), backtesting con estadísticas y aceleración por GPU (Metal / Direct3D 11 / Vulkan). Basado en Wickline (MIT).",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "private": false,
   "main": "desktop/main.mjs",
@@ -39,11 +39,11 @@
     "electron-builder": "^26.18.0",
     "lightweight-charts": "^5.3.0"
   },
-  "author": "Wickline contributors",
+  "author": "[OWNER LEGAL NAME] (GitHub: LucasAlbertodev)",
   "build": {
     "appId": "com.lucasalberto.albertoscharts",
     "productName": "AlbertosCharts",
-    "copyright": "AlbertosCharts · basado en Wickline (MIT)",
+    "copyright": "Copyright © 2026 [OWNER LEGAL NAME]. All rights reserved. Includes Wickline (MIT License).",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -56,7 +56,10 @@
       "desktop/**",
       "build/icon.png",
       "package.json",
-      "LICENSE"
+      "LICENSE",
+      "TERMS.es.md",
+      "TERMS.md",
+      "LICENSE-WICKLINE"
     ],
     "win": {
       "target": [

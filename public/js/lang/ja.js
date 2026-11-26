@@ -119,7 +119,7 @@ export default {
   'app.mode.server': 'データ：AlbertosChartsサーバー（キー不要）',
   'app.mode.tdKey': 'データ：暗号資産＋株式（Twelve Dataキー使用）',
   'app.mode.cryptoOnly': 'データ：暗号資産のみ · 株式には無料キーを追加',
-  'app.footer': '無料のオープンソース · チャート：<a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
+  'app.footer': 'チャート：<a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
   'app.layout.synced': 'チャート同期中',
   'app.layout.sync': 'チャート間で同期',
   'app.layout.crosshair': 'クロスヘア',

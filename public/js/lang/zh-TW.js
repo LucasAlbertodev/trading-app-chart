@@ -119,7 +119,7 @@ export default {
   'app.mode.server': '資料：AlbertosCharts 伺服器（不需金鑰）',
   'app.mode.tdKey': '資料：加密貨幣 + 股票（你的 Twelve Data 金鑰）',
   'app.mode.cryptoOnly': '資料：僅加密貨幣 · 新增免費金鑰即可查看股票',
-  'app.footer': '免費開源 · 圖表由 <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> 提供',
+  'app.footer': '圖表由 <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a> 提供',
   'app.layout.synced': '圖表已同步',
   'app.layout.sync': '跨圖表同步',
   'app.layout.crosshair': '十字線',

@@ -6,6 +6,8 @@ Plataforma de gráficos de escritorio al estilo de TradingView, para uso persona
 
 Es un fork del proyecto de código abierto [Wickline](https://github.com/keptaduona/wickline) (MIT), que aporta el motor de gráficos, los 100 indicadores, las herramientas de dibujo, las alertas, el screener y mucho más. Este fork añade la conexión con brókers, el backtesting con estadísticas (sesiones, estrategias y journal), la elección del backend de GPU y las protecciones de seguridad que se describen abajo.
 
+> **Licencia y términos:** software propietario (todos los derechos reservados), basado en código de Wickline con Licencia MIT. Usar agentes de IA, skills o REA con él requiere autorización previa y por escrito del titular. Ver [LICENSE](LICENSE) y [TERMS.es.md](TERMS.es.md).
+
 ![AlbertosCharts en un Mac Intel, dibujado con Metal](docs/screenshot-gpu-metal.png)
 
 ---
@@ -457,4 +459,5 @@ Los gráficos, dibujos, scripts y watchlists los guarda la propia página (almac
 - Basado en [Wickline](https://github.com/keptaduona/wickline), de los colaboradores de Wickline. La documentación original está en [docs/upstream/](docs/upstream/README.es.md).
 - Gráficos de [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/).
 - Capital.com y OANDA son marcas de sus propietarios. Este proyecto no está afiliado a ellos ni respaldado por ellos, y nada de lo que hay aquí es asesoramiento de inversión.
-- Licencia: [MIT](LICENSE), la misma del proyecto original.
+- Licencia: **propietaria, todos los derechos reservados** sobre las adiciones del Titular; el código de Wickline en el que se basa sigue bajo la **Licencia MIT**. Ver [LICENSE](LICENSE) y [LICENSE-WICKLINE](LICENSE-WICKLINE).
+- Términos de uso, incluidas las reglas sobre agentes de IA, skills y REA: [TERMS.es.md](TERMS.es.md) (borrador, pendiente de revisión legal).

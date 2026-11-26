@@ -1,21 +1,52 @@
-MIT License
+AlbertosCharts — License
 
-Copyright (c) 2026 Wickline contributors
+Copyright (c) 2026 [OWNER LEGAL NAME] (GitHub: LucasAlbertodev). All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This repository contains material under different terms. Read all three parts.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Wickline code — MIT License
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   AlbertosCharts is based on Wickline, Copyright (c) 2026 Wickline contributors
+   (https://github.com/keptaduona/wickline), which is licensed under the MIT License.
+   The complete MIT License text that applies to that code is in the file
+   LICENSE-WICKLINE and must be kept with it.
+
+   The portions of this repository that come from Wickline remain under the MIT
+   License. Nothing in this file, in TERMS.md, or in any other document of this
+   repository limits the rights the MIT License grants for those portions.
+
+2. Owner's additions — proprietary
+
+   All other material in this repository, meaning the modifications and additions
+   made by [OWNER LEGAL NAME] to the Wickline code and the new files created by
+   [OWNER LEGAL NAME], is proprietary.
+
+   No license is granted to use, copy, modify, merge, publish, distribute,
+   sublicense, sell, or create derivative works of that material, except as
+   expressly set out in TERMS.md or in a separate written agreement signed by
+   [OWNER LEGAL NAME].
+
+   Use of the software, including the use of AI agents, skills and REA within or in
+   connection with it, is subject to TERMS.md.
+
+3. Other third-party components
+
+   Other third-party components keep their own licenses, including:
+   - TradingView Lightweight Charts™ — Apache License 2.0
+     (public/vendor/LICENSE-lightweight-charts.txt)
+   - Electron and the npm packages listed in package.json and package-lock.json —
+     under their respective licenses.
+
+[LAWYER REVIEW — the paragraph below is a common disclaimer, not a requirement
+created by this document. Confirm whether and how it applies under the governing
+law set in TERMS.md.]
+
+THE OWNER'S ADDITIONS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, TO THE EXTENT PERMITTED BY APPLICABLE LAW. THE SOFTWARE DOES NOT
+PROVIDE INVESTMENT ADVICE.
+
+[LAWYER REVIEW — confirm how to identify which files or changes are the Owner's
+additions (for example, by reference to the git history of this repository from
+commit 169edc7 onwards, excluding Wickline code merged later, such as merge commit
+8b2840c "Merge Wickline 0.1.9"), since most of them are made inside files that also
+contain MIT-licensed Wickline code.]

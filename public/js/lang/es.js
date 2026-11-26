@@ -119,7 +119,7 @@ export default {
   'app.mode.server': 'Datos: servidor de AlbertosCharts (sin claves)',
   'app.mode.tdKey': 'Datos: cripto + acciones (tu clave de Twelve Data)',
   'app.mode.cryptoOnly': 'Datos: solo cripto · añade una clave gratuita para acciones',
-  'app.footer': 'Gratuito y de código abierto · gráficos de <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
+  'app.footer': 'Gráficos de <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
   'app.layout.synced': 'Gráficos sincronizados',
   'app.layout.sync': 'Sincronizar entre gráficos',
   'app.layout.crosshair': 'Cursor en cruz',

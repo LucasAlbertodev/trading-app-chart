@@ -6,6 +6,8 @@ A desktop charting platform in the spirit of TradingView, built for personal use
 
 It is a fork of the open-source [Wickline](https://github.com/keptaduona/wickline) (MIT), which provides the charting engine, the 100 built-in indicators, drawing tools, alerts, the screener and much more. This fork adds the broker connections, backtesting with statistics (sessions, strategies and a journal), GPU backend selection and the security hardening described below.
 
+> **License and terms:** proprietary software (all rights reserved), based on MIT-licensed Wickline code. Using AI agents, skills or REA with it requires the owner's prior written authorization. See [LICENSE](LICENSE) and [TERMS.md](TERMS.md).
+
 ![AlbertosCharts on an Intel Mac, drawn with Metal](docs/screenshot-gpu-metal.png)
 
 ---
@@ -457,4 +459,5 @@ Charts, drawings, scripts and watchlists are stored by the page itself (local st
 - Based on [Wickline](https://github.com/keptaduona/wickline) by the Wickline contributors. The original documentation is in [docs/upstream/](docs/upstream/README.md).
 - Charts by [TradingView Lightweight Charts™](https://www.tradingview.com/lightweight-charts/).
 - Capital.com and OANDA are trademarks of their owners. This project is not affiliated with or endorsed by them, and nothing here is investment advice.
-- License: [MIT](LICENSE), the same as the original project.
+- License: **proprietary, all rights reserved** for the Owner's additions; the Wickline code it is based on stays under the **MIT License**. See [LICENSE](LICENSE) and [LICENSE-WICKLINE](LICENSE-WICKLINE).
+- Terms of use, including the rules on AI agents, skills and REA: [TERMS.md](TERMS.md) (draft, pending legal review).

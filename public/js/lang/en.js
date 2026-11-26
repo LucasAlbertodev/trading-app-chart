@@ -121,7 +121,7 @@ export default {
   'app.mode.server': 'Data: AlbertosCharts server (no keys needed)',
   'app.mode.tdKey': 'Data: crypto + stocks (your Twelve Data key)',
   'app.mode.cryptoOnly': 'Data: crypto only · add a free key for stocks',
-  'app.footer': 'Free &amp; open source · charts by <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
+  'app.footer': 'Charts by <a href="https://www.tradingview.com/lightweight-charts/" target="_blank" rel="noopener">TradingView Lightweight Charts™</a>',
   'app.layout.synced': 'Charts are synced',
   'app.layout.sync': 'Sync across charts',
   'app.layout.crosshair': 'Crosshair',
